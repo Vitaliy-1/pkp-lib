@@ -439,7 +439,11 @@ class PKPTemplateManager extends Smarty {
 			} else {
 				$this->assign('hasSidebar', !empty($request->getSite()->getData('sidebar')));
 			}
-			HookRegistry::register('Templates::Common::Sidebar', array($this, 'displaySidebar'));
+
+			$plugins = PluginRegistry::loadCategory('blocks', true);
+			if (!empty($plugins)) {
+				HookRegistry::register('Templates::Common::Sidebar', array($this, 'displaySidebar'));
+			}
 
 			// Clear the cache whenever the active theme is changed
 			HookRegistry::register('Context::edit', array($this, 'clearThemeTemplateCache'));
@@ -1006,10 +1010,7 @@ class PKPTemplateManager extends Smarty {
 			return false;
 		}
 
-		$plugins = PluginRegistry::loadCategory('blocks', true);
-		if (empty($plugins)) {
-			return false;
-		}
+		$plugins = PluginRegistry::getPlugins('blocks');
 
 		foreach ($blocks as $pluginName) {
 			if (!empty($plugins[$pluginName])) {
