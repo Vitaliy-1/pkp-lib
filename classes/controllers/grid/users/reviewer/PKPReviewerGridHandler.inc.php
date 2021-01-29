@@ -25,6 +25,8 @@ define('REVIEWER_SELECT_ADVANCED_SEARCH',		0x00000001);
 define('REVIEWER_SELECT_CREATE',			0x00000002);
 define('REVIEWER_SELECT_ENROLL_EXISTING',		0x00000003);
 
+define('REVIEWER_ENROLL_SEARCH_LIMIT', 20000);
+
 class PKPReviewerGridHandler extends GridHandler {
 
 	/** @var Submission */
@@ -399,16 +401,56 @@ class PKPReviewerGridHandler extends GridHandler {
 		$term = $request->getUserVar('term');
 
 		$userGroupDao = DAORegistry::getDAO('UserGroupDAO'); /* @var $userGroupDao UserGroupDAO */
-		$users = $userGroupDao->getUsersNotInRole(ROLE_ID_REVIEWER, $context->getId(), $term);
+		$users = $userGroupDao->getUsersNotInRole(ROLE_ID_REVIEWER, $context->getId(), $term, new DBResultRange(REVIEWER_ENROLL_SEARCH_LIMIT))->toArray();
+		$usersCount = count($users);
 
-		$userList = array();
-		while ($user = $users->next()) {
-			$label = $user->getFullName() . " (" . $user->getEmail() . ")";
-			$userList[] = array('label' => $label, 'value' => $user->getId());
+		if ($usersCount === 0) {
+			return $this->noAutocompleteResults();
 		}
 
-		if (count($userList) == 0) {
-			return $this->noAutocompleteResults();
+		// Limit the number of users to display
+		if ($context) $count = $context->getData('itemsPerPage');
+		if (!isset($count)) $count = Config::getVar('interface', 'items_per_page');
+
+		if ($usersCount > $count) {
+			// Return the most relevant matches, calculate by Levenshtein distance
+			$dataKeysToAssess = [IDENTITY_SETTING_GIVENNAME, IDENTITY_SETTING_FAMILYNAME, 'affiliation', 'preferredPublicName', 'username', 'email'];
+			usort($users, function (User $a, User $b) use ($term, $dataKeysToAssess) {
+				$calculateLevMin = function (User $user) use ($term, $dataKeysToAssess) {
+
+					$userDataChunk = [];
+					foreach ($dataKeysToAssess as $userDataKey) {
+						$dataValue = $user->getData($userDataKey);
+						if (empty($dataValue)) continue;
+						if (is_array($dataValue)) {
+							array_merge($userDataChunk, array_values($dataValue));
+							continue;
+						}
+						$userDataChunk[] = $userDataKey;
+					}
+
+					$levMin = PHP_INT_MAX;
+					foreach ($userDataChunk as $dataPiece) {
+						$levMin = min($levMin, levenshtein($term, $dataPiece));
+					}
+					return $levMin;
+				};
+
+				$aLevMin = $calculateLevMin($a);
+				$bLevMin = $calculateLevMin($b);
+
+				if ($aLevMin < $bLevMin) return -1;
+				if ($aLevMin > $bLevMin) return 1;
+				return 0;
+			});
+
+			$users = array_slice($users, 0, $count);
+		}
+
+		$userList = array();
+		foreach ($users as $user) {
+			$label = $user->getFullName() . " (" . $user->getEmail() . ")";
+			$userList[] = array('label' => $label, 'value' => $user->getId());
 		}
 
 		return new JSONMessage(true, $userList);
