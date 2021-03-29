@@ -600,7 +600,11 @@ class PKPPublicationService implements EntityPropertyInterface, EntityReadInterf
 		}
 		import('lib.pkp.classes.log.SubmissionLog');
 		import('classes.log.SubmissionEventLogEntry');
+
 		SubmissionLog::logEvent(Application::get()->getRequest(), $submission, SUBMISSION_LOG_METADATA_PUBLISH, $msg);
+
+		event(new \PKP\Events\PublicationPublishedEvent($publication));
+		event(new \PKP\Events\TestQueueEvent($publication));
 
 		HookRegistry::call('Publication::publish', [&$newPublication, $publication, $submission]);
 

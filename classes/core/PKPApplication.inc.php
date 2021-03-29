@@ -194,11 +194,19 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		if ($databaseConnectionInitialized) return;
 
 		$databaseConnectionInitialized = true;
-		$laravelContainer = new Illuminate\Container\Container();
+
+		// Initialize Laravel's container and set it globally
+		$laravelContainer = Illuminate\Container\Container::getInstance();;
 		Registry::set('laravelContainer', $laravelContainer);
-		(new Illuminate\Bus\BusServiceProvider($laravelContainer))->register();
-		(new Illuminate\Events\EventServiceProvider($laravelContainer))->register();
+		Illuminate\Support\Facades\Facade::setFacadeApplication($laravelContainer);
+
+		// Register services
 		$eventDispatcher = new \Illuminate\Events\Dispatcher($laravelContainer);
+		(new Illuminate\Bus\BusServiceProvider($laravelContainer))->register();
+		import('lib.pkp.classes.observers.PKPEventServiceProvider');
+		$eventServiceProvider = new PKP\Events\PKPEventServiceProvider($laravelContainer);
+		$eventServiceProvider->register();
+
 		$laravelContainer->instance('Illuminate\Contracts\Events\Dispatcher', $eventDispatcher);
 		$laravelContainer->instance('Illuminate\Contracts\Container\Container', $laravelContainer);
 
@@ -227,7 +235,6 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		if (Config::getVar('database', 'debug')) Capsule::listen(function($query) {
 			error_log("Database query\n$query->sql\n" . json_encode($query->bindings));//\n Bindings: " . print_r($query->bindings, true));
 		});
-
 
 		// Set up Laravel queue handling
 		$laravelContainer->bind('exception.handler', function () {
@@ -271,6 +278,8 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		], 'persistent');
 
 		$queue->setAsGlobal();
+
+		$eventServiceProvider->boot(); // Booting events data, originally processed after other framework components
 	}
 
 	/**
