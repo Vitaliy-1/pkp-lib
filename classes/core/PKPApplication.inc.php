@@ -196,7 +196,7 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		$databaseConnectionInitialized = true;
 
 		// Initialize Laravel's container and set it globally
-		$laravelContainer = Illuminate\Container\Container::getInstance();;
+		$laravelContainer = Illuminate\Container\Container::getInstance();
 		Registry::set('laravelContainer', $laravelContainer);
 		Illuminate\Support\Facades\Facade::setFacadeApplication($laravelContainer);
 
