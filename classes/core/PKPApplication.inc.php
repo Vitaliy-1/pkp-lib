@@ -196,43 +196,13 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		$databaseConnectionInitialized = true;
 
 		// Initialize Laravel's container and set it globally
-		$laravelContainer = Illuminate\Container\Container::getInstance();
+		import('lib.pkp.classes.core.PKPContainer');
+		$laravelContainer = new PKPContainer();
+
 		Registry::set('laravelContainer', $laravelContainer);
-		Illuminate\Support\Facades\Facade::setFacadeApplication($laravelContainer);
+		$laravelContainer->registerConfiguredProviders();
 
-		// Register services
-		$eventDispatcher = new \Illuminate\Events\Dispatcher($laravelContainer);
-		(new Illuminate\Bus\BusServiceProvider($laravelContainer))->register();
-		import('lib.pkp.classes.observers.PKPEventServiceProvider');
-		$eventServiceProvider = new PKP\Events\PKPEventServiceProvider($laravelContainer);
-		$eventServiceProvider->register();
-
-		$laravelContainer->instance('Illuminate\Contracts\Events\Dispatcher', $eventDispatcher);
-		$laravelContainer->instance('Illuminate\Contracts\Container\Container', $laravelContainer);
-
-		// Map valid config options to Illuminate database drivers
-		$driver = strtolower(Config::getVar('database', 'driver'));
-		if (substr($driver, 0, 8) === 'postgres') {
-			$driver = 'pgsql';
-		} else {
-			$driver = 'mysql';
-		}
-
-		$capsule = new Capsule;
-		$capsule->addConnection([
-			'driver'    => $driver,
-			'host'      => Config::getVar('database', 'host'),
-			'database'  => Config::getVar('database', 'name'),
-			'username'  => Config::getVar('database', 'username'),
-			'port'      => Config::getVar('database', 'port'),
-			'unix_socket'=> Config::getVar('database', 'unix_socket'),
-			'password'  => Config::getVar('database', 'password'),
-			'charset'   => Config::getVar('i18n', 'connection_charset', 'utf8'),
-			'collation' => Config::getVar('database', 'collation', 'utf8_general_ci'),
-		]);
-		$capsule->setEventDispatcher($eventDispatcher);
-		$capsule->setAsGlobal();
-		if (Config::getVar('database', 'debug')) Capsule::listen(function($query) {
+		if (Config::getVar('database', 'debug')) \Illuminate\Support\Facades\DB ::listen(function($query) {
 			error_log("Database query\n$query->sql\n" . json_encode($query->bindings));//\n Bindings: " . print_r($query->bindings, true));
 		});
 
@@ -263,7 +233,7 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		$queue->addConnection(['driver' => 'sync']);
 
 		// Persistent queue
-		$connection = Capsule::schema()->getConnection();
+		$connection = $laravelContainer['db.connection'];
 		$resolver = new \Illuminate\Database\ConnectionResolver(['default' => $connection]);
 		$manager = $queue->getQueueManager();
 		$laravelContainer['queue'] = $queue->getQueueManager();
@@ -279,7 +249,7 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 
 		$queue->setAsGlobal();
 
-		$eventServiceProvider->boot(); // Booting events data, originally processed after other framework components
+		//$eventServiceProvider->boot(); // Booting events data, originally processed after other framework components
 	}
 
 	/**
