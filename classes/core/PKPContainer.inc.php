@@ -39,14 +39,22 @@ class PKPContainer extends Container {
 	 * @brief Register used service providers within the container
 	 */
 	public function registerConfiguredProviders() {
-		$eventServiceProvider = new PKPEventServiceProvider($this);
-		$databaseServiceProvider = new Illuminate\Database\DatabaseServiceProvider($this);
+		$this->register(new PKPEventServiceProvider($this));
+		$this->register(new Illuminate\Database\DatabaseServiceProvider($this));
+		$this->register(new Illuminate\Bus\BusServiceProvider($this));
+		$this->register(new Illuminate\Queue\QueueServiceProvider($this));
+	}
 
-		$eventServiceProvider->register();
-		$databaseServiceProvider->register();
-
-		$databaseServiceProvider->boot();
-		$eventServiceProvider->boot();
+	/**
+	 * @param Illuminate\Support\ServiceProvider $provider
+	 * @return void
+	 * @brief Simplified service registration
+	 */
+	public function register($provider) {
+		$provider->register();
+		if (method_exists($provider, 'boot')) {
+			$provider->boot();
+		}
 	}
 
 	/**
@@ -87,7 +95,6 @@ class PKPContainer extends Container {
 		}
 
 		$items['database']['default'] = $driver;
-
 		$items['database']['connections'][$driver] = [
 			'driver'    => $driver,
 			'host'      => Config::getVar('database', 'host'),
@@ -98,6 +105,16 @@ class PKPContainer extends Container {
 			'password'  => Config::getVar('database', 'password'),
 			'charset'   => Config::getVar('i18n', 'connection_charset', 'utf8'),
 			'collation' => Config::getVar('database', 'collation', 'utf8_general_ci'),
+		];
+
+		// Queue connection
+		$items['queue']['default'] = 'sync';
+		$items['queue']['connections']['sync']['driver'] = 'sync';
+		$items['queue']['connections']['database'] = [
+			'driver' => 'database',
+			'table' => 'jobs',
+			'queue' => 'default',
+			'retry_after' => 90,
 		];
 
 		$this->instance('config', $config = new Repository($items)); // create instance and bind to use globally

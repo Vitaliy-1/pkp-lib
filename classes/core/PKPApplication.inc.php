@@ -205,51 +205,6 @@ abstract class PKPApplication implements iPKPApplicationInfoProvider {
 		if (Config::getVar('database', 'debug')) \Illuminate\Support\Facades\DB ::listen(function($query) {
 			error_log("Database query\n$query->sql\n" . json_encode($query->bindings));//\n Bindings: " . print_r($query->bindings, true));
 		});
-
-		// Set up Laravel queue handling
-		$laravelContainer->bind('exception.handler', function () {
-			return new class implements Illuminate\Contracts\Debug\ExceptionHandler {
-				public function shouldReport(Throwable $e) {
-					return true;
-				}
-
-				public function report(Throwable $e) {
-					error_log((string) $e);
-				}
-
-				public function render($request, Throwable $e) {
-					return null;
-				}
-
-				public function renderForConsole($output, Throwable $e) {
-					echo (string) $e;
-				}
-			};
-		});
-
-		$queue = new Illuminate\Queue\Capsule\Manager($laravelContainer);
-
-		// Synchronous (immediate) queue
-		$queue->addConnection(['driver' => 'sync']);
-
-		// Persistent queue
-		$connection = $laravelContainer['db.connection'];
-		$resolver = new \Illuminate\Database\ConnectionResolver(['default' => $connection]);
-		$manager = $queue->getQueueManager();
-		$laravelContainer['queue'] = $queue->getQueueManager();
-		$manager->addConnector('database', function () use ($resolver) {
-			return new Illuminate\Queue\Connectors\DatabaseConnector($resolver);
-		});
-		$queue->addConnection([
-			'driver' => 'database',
-			'table' => 'jobs',
-			'connection' => 'default',
-			'queue' => 'default',
-		], 'persistent');
-
-		$queue->setAsGlobal();
-
-		//$eventServiceProvider->boot(); // Booting events data, originally processed after other framework components
 	}
 
 	/**

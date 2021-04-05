@@ -16,7 +16,7 @@ class TestQueueEvent implements ShouldQueue {
 
 	public int $delay = 10;
 
-	public string $connection = 'default';
+	public string $connection = 'database';
 
 	public string $queue = 'default';
 
@@ -26,7 +26,6 @@ class TestQueueEvent implements ShouldQueue {
 
 	public function handle(PublicationPublishedEvent $event) {
 		$publication = $event->publication;
-		error_log('delay: ' . $this->delay . " ----------------------------------------------------------------------");
 	}
 }
 
