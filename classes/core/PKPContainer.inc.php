@@ -86,7 +86,9 @@ class PKPContainer extends Container {
 			$driver = 'mysql';
 		}
 
-		$items['database']['connections'] = [
+		$items['database']['default'] = $driver;
+
+		$items['database']['connections'][$driver] = [
 			'driver'    => $driver,
 			'host'      => Config::getVar('database', 'host'),
 			'database'  => Config::getVar('database', 'name'),
