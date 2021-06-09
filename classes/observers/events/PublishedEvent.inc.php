@@ -8,7 +8,7 @@
  * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
  *
  * @class PublishedEvent
- * @ingroup core
+ * @ingroup observers_events
  *
  * @brief Event fired when publication is being published
  */

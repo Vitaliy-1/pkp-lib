@@ -24,6 +24,7 @@ use PKP\linkAction\request\AjaxModal;
 use PKP\linkAction\request\RemoteActionConfirmationModal;
 use PKP\mail\SubmissionMailTemplate;
 use PKP\notification\PKPNotification;
+use PKP\observers\events\DiscussionMessageSent;
 use PKP\security\authorization\QueryAccessPolicy;
 
 use PKP\security\authorization\QueryWorkflowStageAccessPolicy;
@@ -623,6 +624,7 @@ class QueriesGridHandler extends GridHandler
                     $this->getAssocId()
                 );
             }
+            event(new DiscussionMessageSent($query));
             return \PKP\db\DAO::getDataChangedEvent($query->getId());
         }
         return new JSONMessage(

@@ -45,6 +45,7 @@ use ReviewerGridCellProvider;
 
 import('lib.pkp.controllers.grid.users.reviewer.ReviewerGridRow');
 use ReviewerGridRow;
+use UnassignReviewerForm;
 
 class PKPReviewerGridHandler extends GridHandler
 {
