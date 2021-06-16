@@ -17,7 +17,6 @@ namespace PKP\observers\events;
 
 use PKP\core\NotificationEvent;
 use Illuminate\Foundation\Events\Dispatchable;
-use PKP\core\PKPRequest;
 use PKP\submission\PKPSubmission;
 use PKP\submission\reviewAssignment\ReviewAssignment;
 use PKP\user\User;
@@ -26,21 +25,17 @@ class ReviewerAssigned extends NotificationEvent
 {
     use Dispatchable;
 
-    /** @var PKPRequest $request */
-    public $request;
-
     /** @var PKPSubmission $submission */
     public $submission;
 
     /** @var User $reviewer */
     public $reviewer;
 
-    /* @var ReviewAssignment $reviewAssignment */
+    /** @var ReviewAssignment $reviewAssignment */
     public $reviewAssignment;
 
-    public function __construct(PKPRequest $request, PKPSubmission $submission, User $reviewer, ReviewAssignment $reviewAssignment)
+    public function __construct(PKPSubmission $submission, User $reviewer, ReviewAssignment $reviewAssignment)
     {
-        $this->request = $request;
         $this->submission = $submission;
         $this->reviewer = $reviewer;
         $this->reviewAssignment = $reviewAssignment;

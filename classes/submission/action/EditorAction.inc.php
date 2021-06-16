@@ -168,7 +168,7 @@ class EditorAction
 
             // Add log
             SubmissionLog::logEvent($request, $submission, PKPSubmissionEventLogEntry::SUBMISSION_LOG_REVIEW_ASSIGN, 'log.review.reviewerAssigned', ['reviewAssignmentId' => $reviewAssignment->getId(), 'reviewerName' => $reviewer->getFullName(), 'submissionId' => $submission->getId(), 'stageId' => $stageId, 'round' => $round]);
-            event(new ReviewerAssigned($request, $submission, $reviewer, $reviewAssignment));
+            event(new ReviewerAssigned($submission, $reviewer, $reviewAssignment));
         }
     }
 

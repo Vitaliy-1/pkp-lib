@@ -18,6 +18,8 @@ import('pages.user.UserHandler');
 
 use APP\template\TemplateManager;
 
+use PKP\observers\events\UserRegisteredContext;
+use PKP\observers\events\UserRegisteredSite;
 use PKP\security\AccessKeyManager;
 use PKP\user\form\RegistrationForm;
 
@@ -71,7 +73,7 @@ class RegistrationHandler extends UserHandler
             return $regForm->display($request);
         }
 
-        $regForm->execute();
+        $userId = $regForm->execute();
 
         // Inform the user of the email validation process. This must be run
         // before the disabled account check to ensure new users don't see the
@@ -101,6 +103,14 @@ class RegistrationHandler extends UserHandler
                 'backLinkLabel' => 'user.login',
             ]);
             return $templateMgr->display('frontend/pages/error.tpl');
+        }
+
+        $user = Registry::get('user')->get($userId);
+
+        if ($context = $request->getContext()) {
+            event(new UserRegisteredContext($user, $context));
+        } else {
+            event(new UserRegisteredSite($user, $request->getSite()));
         }
 
         $source = $request->getUserVar('source');

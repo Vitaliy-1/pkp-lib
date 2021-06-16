@@ -354,24 +354,6 @@ class RegistrationForm extends Form
         return $userId;
     }
 
-    /**
-     * Set mail from address
-     *
-     * @param $request PKPRequest
-     * @param $mail MailTemplate
-     */
-    public function _setMailFrom($request, $mail)
-    {
-        $site = $request->getSite();
-        $context = $request->getContext();
-
-        // Set the sender based on the current context
-        if ($context && $context->getData('supportEmail')) {
-            $mail->setReplyTo($context->getData('supportEmail'), $context->getData('supportName'));
-        } else {
-            $mail->setReplyTo($site->getLocalizedContactEmail(), $site->getLocalizedContactName());
-        }
-    }
 }
 
 if (!PKP_STRICT_MODE) {

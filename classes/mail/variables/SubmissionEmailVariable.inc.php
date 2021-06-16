@@ -18,18 +18,22 @@ namespace PKP\mail\variables;
 use APP\core\Application;
 use APP\core\Services;
 use InvalidArgumentException;
+use PKP\context\PKPSectionDAO;
 use PKP\core\PKPApplication;
+use PKP\db\DAORegistry;
 use PKP\publication\PKPPublication;
+use PKP\security\Role;
+use PKP\security\UserGroup;
+use PKP\security\UserGroupDAO;
 use PKP\submission\PKPSubmission;
 
-class SubmissionEmailVariable implements VariableInterface
+class SubmissionEmailVariable extends Variable
 {
     const SUBMISSION_TITLE = 'submissionTitle';
     const SUBMISSION_ID = 'submissionId';
     const SUBMISSION_ABSTRACT = 'submissionAbstract';
     const AUTHOR_STRING = 'authorString';
     const SUBMISSION_URL = 'submissionUrl';
-    const SECTION_NAME = 'sectionName';
 
     /** @var PKPSubmission $submission */
     protected $submission;
@@ -38,12 +42,13 @@ class SubmissionEmailVariable implements VariableInterface
     protected $currentPublication;
 
     /**
-     * SubmissionEmailVariable constructor.
      * @param PKPSubmission $submission
      */
     public function __construct(PKPSubmission $submission)
     {
         $this->submission = $submission;
+        $currentPublicationId = $this->submission->getData('currentPublicationId');
+        $this->currentPublication = Services::get('publication')->get($currentPublicationId);
     }
 
     /**
@@ -60,42 +65,7 @@ class SubmissionEmailVariable implements VariableInterface
             self::SUBMISSION_ABSTRACT => 'Abstract of the submission',
             self::AUTHOR_STRING => 'The names of the authors separated by a comma',
             self::SUBMISSION_URL => 'The URL of the submission',
-            self::SECTION_NAME => 'The name of the section to which the submission is assigned',
         ];
-    }
-
-    /**
-     * @param string|null $variableConst
-     * @return string|string[]
-     * @brief see VariableInterface::getDescription
-     */
-    public static function getDescription(string $variableConst = null)
-    {
-        $description = static::description();
-        if (!is_null($variableConst))
-        {
-            if (!array_key_exists($variableConst, $description))
-                throw new InvalidArgumentException('Template variable \'' . $variableConst . '\' doesn\'t exist in ' . static::class);
-            return $description[$variableConst];
-        }
-        return $description;
-    }
-
-    /**
-     * @param string|null $variableConst
-     * @return string|string[] returns variable value if variable is specified as a last argument, otherwise returns all values
-     */
-    public function getValue(string $variableConst = null)
-    {
-        $values = static::values();
-        if (!is_null($variableConst))
-        {
-            if (!array_key_exists($variableConst, $values))
-                throw new InvalidArgumentException('Template variable \'' . $variableConst . '\' doesn\'t exist in ' . static::class);
-            return $values[$variableConst];
-        }
-
-        return $values;
     }
 
     /**
@@ -115,24 +85,12 @@ class SubmissionEmailVariable implements VariableInterface
     }
 
     /**
-     * @return PKPPublication
-     * @brief several Submission variables actually are associated with Publication properties
-     */
-    protected function getPublication() : PKPPublication
-    {
-        if (isset($this->currentPublication))
-            return $this->currentPublication;
-        $currentPublicationId = $this->submission->getData('currentPublicationId');
-        return $this->currentPublication = Services::get('publication')->get($currentPublicationId);
-    }
-
-    /**
      * @return string
      * @brief retrieves the full title of the current publication
      */
     protected function getPublicationTitle() : string
     {
-        return $this->getPublication()->getLocalizedData('fullTitle');
+        return $this->currentPublication->getLocalizedFullTitle();
     }
 
     /**
@@ -150,7 +108,7 @@ class SubmissionEmailVariable implements VariableInterface
      */
     protected function getPublicationAbstract() : string
     {
-        return $this->getPublication()->getLocalizedData('abstract');
+        return $this->currentPublication->getLocalizedData('abstract');
     }
 
     /**
@@ -159,7 +117,10 @@ class SubmissionEmailVariable implements VariableInterface
      */
     protected function getAuthorString() : string
     {
-        return $this->getPublication()->getData('authorsString');
+        $userGroupDao = DAORegistry::getDAO('UserGroupDAO'); /* @var $userGroupDao UserGroupDAO */
+        $contextId = $this->submission->getData('contextId');
+        $userGroups = $userGroupDao->getByRoleId($contextId, Role::ROLE_ID_AUTHOR)->toArray();
+        return $this->currentPublication->getAuthorString($userGroups);
     }
 
     /**
@@ -169,6 +130,6 @@ class SubmissionEmailVariable implements VariableInterface
     protected function getSubmissionUrl() : string
     {
         $request = Application::get()->getRequest();
-        return $request->url($request, PKPApplication::ROUTE_PAGE, null, 'workflow', 'index', [$this->submission->getId(), $this->submission->getData('stageId')]);
+        return $request->getDispatcher()->url($request, PKPApplication::ROUTE_PAGE, null, 'workflow', 'index', [$this->submission->getId(), $this->submission->getData('stageId')]);
     }
 }
