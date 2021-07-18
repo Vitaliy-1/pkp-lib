@@ -15,12 +15,14 @@
 
 namespace PKP\mail\variables;
 
+use PKP\core\PKPApplication;
 use PKP\submission\reviewAssignment\ReviewAssignment;
 
 class ReviewAssignmentEmailVariable extends Variable
 {
     const REVIEW_DUE_DATE = 'reviewDueDate';
     const RESPONSE_DUE_DATE = 'responseDueDate';
+    const SUBMISSION_REVIEW_URL = 'submissionReviewUrl';
 
     /** @var ReviewAssignment $reviewAssignment */
     protected $reviewAssignment;
@@ -31,8 +33,7 @@ class ReviewAssignmentEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief see Variable::description()
+     * @copydoc Variable::description()
      */
     protected static function description(): array
     {
@@ -40,12 +41,12 @@ class ReviewAssignmentEmailVariable extends Variable
         [
             self::REVIEW_DUE_DATE => 'Date by which the review is planned to be finished',
             self::RESPONSE_DUE_DATE => 'The final date response is expected to be received',
+            self::SUBMISSION_REVIEW_URL => 'URL to the submission review assignment',
         ];
     }
 
     /**
-     * @return array
-     * @brief see Variable::values()
+     * @copydoc Variable::values()
      */
     protected function values(): array
     {
@@ -53,16 +54,42 @@ class ReviewAssignmentEmailVariable extends Variable
         [
             self::REVIEW_DUE_DATE => $this->getReviewDueDate(),
             self::RESPONSE_DUE_DATE => $this->getResponseDueDate(),
+            self::SUBMISSION_REVIEW_URL => $this->getSubmissionUrl(),
         ];
     }
 
-    protected function getReviewDueDate() : int
+    /**
+     * @return string
+     */
+    protected function getReviewDueDate() : string
     {
-        return strtotime($this->reviewAssignment->getDateDue());
+        return $this->reviewAssignment->getDateDue();
     }
 
-    protected function getResponseDueDate() : int
+    /**
+     * @return string
+     */
+    protected function getResponseDueDate() : string
     {
-        return strtotime($this->reviewAssignment->getDateResponseDue());
+        return $this->reviewAssignment->getDateResponseDue();
+    }
+
+    /**
+     * URL of the submission for the assigned reviewer
+     * @return string URL
+     */
+    protected function getSubmissionUrl() : string
+    {
+        $request = PKPApplication::get()->getRequest();
+        $dispatcher = $request->getDispatcher();
+        return $dispatcher->url(
+            $request,
+            PKPApplication::ROUTE_PAGE,
+            null,
+            'reviewer',
+            'submission',
+            null,
+            ['submissionId' => $this->reviewAssignment->getSubmissionId()]
+        );
     }
 }

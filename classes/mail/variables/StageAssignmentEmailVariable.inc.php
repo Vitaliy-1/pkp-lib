@@ -16,8 +16,8 @@
 namespace PKP\mail\variables;
 
 use PKP\db\DAORegistry;
+use PKP\i18n\PKPLocale;
 use PKP\stageAssignment\StageAssignment;
-use PKP\submission\reviewAssignment\ReviewAssignment;
 
 class StageAssignmentEmailVariable extends Variable
 {
@@ -32,8 +32,7 @@ class StageAssignmentEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief see Variable::description()
+     * @copydoc Variable::description()
      * TODO replace description with locale keys
      */
     protected static function description(): array
@@ -45,8 +44,7 @@ class StageAssignmentEmailVariable extends Variable
     }
 
     /**
-     * @return array
-     * @brief see Variable::values()
+     * @copydoc Variable::values()
      */
     protected function values(): array
     {
@@ -56,20 +54,30 @@ class StageAssignmentEmailVariable extends Variable
         ];
     }
 
-    protected function getEditors() : string
+    /**
+     * Full names of editors associated with an assignment
+     * @return array [localeKey => editorNames]
+     */
+    protected function getEditors() : array
     {
-        $editorsStr = '';
+        $editorsStrLocalized = [];
+        $supportedLocales = PKPLocale::getSupportedLocales();
         $stageAssignmentDao = DAORegistry::getDAO('StageAssignmentDAO');
         $userDao = DAORegistry::getDAO('UserDAO');
         $editorsStageAssignments = $stageAssignmentDao->getEditorsAssignedToStage($this->stageAssignment->getSubmissionId(), $this->stageAssignment->getStageId());
-        $i = 0;
-        foreach ($editorsStageAssignments as $editorsStageAssignment) {
-            if (!$editorsStageAssignment->getRecommendOnly()) {
-                $editorFullName = $userDao->getUserFullName($editorsStageAssignment->getUserId());
-                $editorsStr .= ($i == 0) ? $editorFullName : ', ' . $editorFullName;
-                $i++;
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $editorsStr = '';
+            $i = 0;
+            foreach ($editorsStageAssignments as $editorsStageAssignment) {
+                if (!$editorsStageAssignment->getRecommendOnly()) {
+                    $editorFullName = $userDao->getUserFullName($editorsStageAssignment->getUserId());
+                    $editorsStr .= ($i == 0) ? $editorFullName : ', ' . $editorFullName;
+                    $i++;
+                }
             }
+            $editorsStrLocalized[$localeKey] = $editorsStr;
         }
-        return $editorsStr;
+
+        return $editorsStrLocalized;
     }
 }

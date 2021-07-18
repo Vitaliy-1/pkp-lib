@@ -34,8 +34,7 @@ class SiteEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief see Variable::description()
+     * @copydoc  Variable::description()
      */
     protected static function description(): array
     {
@@ -47,8 +46,7 @@ class SiteEmailVariable extends Variable
     }
 
     /**
-     * @return array
-     * @brief see Variable::values()
+     * @copydoc Variable::values()
      */
     protected function values(): array
     {
@@ -59,13 +57,21 @@ class SiteEmailVariable extends Variable
        ];
     }
 
-    protected function getSiteTitle()
+    /**
+     * Site title
+     * @return array [localeKey => title]
+     */
+    protected function getSiteTitle() : array
     {
-        return $this->site->getLocalizedData('title');
+        return $this->site->getData('title');
     }
 
-    protected function getSiteContactName()
+    /**
+     * Name of a person indicated as website's primary contact in supported locales
+     * @return array [localeKey => contactName]
+     */
+    protected function getSiteContactName() : array
     {
-        return $this->site->getLocalizedContactName();
+        return $this->site->getData('contactName');
     }
 }

@@ -16,6 +16,7 @@
 namespace PKP\mail\variables;
 
 use InvalidArgumentException;
+use PKP\i18n\PKPLocale;
 use PKP\user\User;
 
 class RecipientEmailVariable extends Variable
@@ -28,7 +29,6 @@ class RecipientEmailVariable extends Variable
     protected $recipients;
 
     /**
-     * RecipientEmailVariable constructor.
      * @param array $recipient
      */
     public function __construct(array $recipient)
@@ -43,8 +43,7 @@ class RecipientEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief see Variable::description
+     * @copydoc Variable::description()
      * TODO replace description with locale keys
      */
     protected static function description() : array
@@ -58,8 +57,7 @@ class RecipientEmailVariable extends Variable
     }
 
     /**
-     * @return array
-     * @brief see Variable::values
+     * @copydoc Variable::values()
      */
     protected function values() : array
     {
@@ -71,48 +69,65 @@ class RecipientEmailVariable extends Variable
         ];
     }
 
-    protected function getRecipientsFullName() : string
+    /**
+     * Array containing full names of recipients in all supported locales separated by a comma
+     * @return array [localeKey => fullName]
+     */
+    protected function getRecipientsFullName() : array
     {
-        $fullNames = '';
-        $lastKey = array_key_last($this->recipients);
-        foreach ($this->recipients as $key => $recipient)
-        {
-            $fullNames .= $recipient->getFullName();
-            if ($key !== $lastKey)
-            {
-                $fullNames .= ', ';
+        $fullNamesLocalized = [];
+        $supportedLocales = PKPLocale::getSupportedLocales();
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $fullNames = '';
+            $lastKey = array_key_last($this->recipients);
+            foreach ($this->recipients as $key => $recipient) {
+                $fullNames .= $recipient->getFullName(true, false, $localeKey);
+                if ($key !== $lastKey) {
+                    $fullNames .= ', ';
+                }
             }
+            $fullNamesLocalized[$localeKey] = $fullNames;
         }
-        return $fullNames;
+
+        return $fullNamesLocalized;
     }
 
+    /**
+     * Usernames of recipients separated by a comma
+     * @return string
+     */
     protected function getRecipientsUserName() : string
     {
         $userNames = '';
         $lastKey = array_key_last($this->recipients);
-        foreach ($this->recipients as $key => $recipient)
-        {
+        foreach ($this->recipients as $key => $recipient) {
             $userNames .= $recipient->getData('username');
-            if ($key !== $lastKey)
-            {
+            if ($key !== $lastKey)  {
                 $userNames .= ', ';
             }
         }
         return $userNames;
     }
 
-    protected function getRecipientsGivenName() : string
+    /**
+     * Array containing given names of recipients in all supported locales separated by a comma
+     * @return array [localeKey => givenName]
+     */
+    protected function getRecipientsGivenName() : array
     {
-        $givenNames = '';
-        $lastKey = array_key_last($this->recipients);
-        foreach ($this->recipients as $key => $recipient)
-        {
-            $givenNames .= $recipient->getLocalizedData('givenName');
-            if ($key !== $lastKey)
-            {
-                $givenNames .= ', ';
+        $givenNamesLocalized = [];
+        $supportedLocales = PKPLocale::getSupportedLocales();
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $givenNames = '';
+            $lastKey = array_key_last($this->recipients);
+            foreach ($this->recipients as $key => $recipient) {
+                $givenNames .= $recipient->getGivenName($localeKey);
+                if ($key !== $lastKey) {
+                    $givenNames .= ', ';
+                }
             }
+            $givenNamesLocalized[$localeKey] = $givenNames;
         }
-        return $givenNames;
+        return $givenNamesLocalized;
     }
 }

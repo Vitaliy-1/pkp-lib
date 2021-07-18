@@ -15,12 +15,10 @@
 
 namespace PKP\observers\events;
 
-use PKP\core\NotificationEvent;
 use Illuminate\Foundation\Events\Dispatchable;
-use PKP\core\PKPRequest;
 use PKP\query\Query;
 
-class DiscussionMessageSent extends NotificationEvent
+class DiscussionMessageSent
 {
     use Dispatchable;
 

@@ -16,7 +16,10 @@
 namespace PKP\mail\variables;
 
 use PKP\context\Context;
+use PKP\core\Dispatcher;
 use PKP\core\PKPApplication;
+use PKP\core\PKPRequest;
+use PKP\i18n\PKPLocale;
 
 class ContextEmailVariable extends Variable
 {
@@ -33,14 +36,17 @@ class ContextEmailVariable extends Variable
     /** @var Context $context */
     protected $context;
 
+    /** @var PKPRequest $request */
+    protected $request;
+
     public function __construct(Context $context)
     {
         $this->context = $context;
+        $this->request = PKPApplication::get()->getRequest();
     }
 
     /**
-     * @return string[]
-     * @brief maps variables with their description
+     * @copydoc Variable::description()
      * TODO replace description with locale keys
      */
     protected static function description() : array
@@ -59,6 +65,9 @@ class ContextEmailVariable extends Variable
         ];
     }
 
+    /**
+     * @copydoc Variable::values()
+     */
     protected function values() : array
     {
         return
@@ -75,46 +84,86 @@ class ContextEmailVariable extends Variable
         ];
     }
 
-    protected function getContextName() : string
+    /**
+     * Title of a context
+     * @return array
+     */
+    protected function getContextName() : array
     {
-        return $this->context->getLocalizedData('name');
+        return $this->context->getData('name');
     }
 
+    /**
+     * Context's URL
+     * @return string
+     */
     protected function getContextUrl() : string
     {
-        return PKPApplication::get()->getRequest()->url($this->context->getData('urlPath'));
+        return $this->request->getDispatcher()->url($this->request, PKPApplication::ROUTE_PAGE, $this->context->getData('urlPath'));
     }
 
+    /**
+     * Name of a person being a primary contact of a context
+     * @return string
+     */
     protected function getContactName() : string
     {
         return $this->context->getData('contactName');
     }
 
-    protected function getPrincipalContactSignature() : string
+    /**
+     * Signature of a person indicated as a primary contact of a context
+     * @return array
+     */
+    protected function getPrincipalContactSignature() : array
     {
-        return $this->getContactName() . "\n" . $this->getContextName();
+        $signature = [];
+        foreach ($this->getContextName() as $localeKey => $localizedContextName) {
+            $signature[$localeKey] = $this->getContactName() . "\n" . $localizedContextName;
+        }
+        return $signature;
     }
 
+    /**
+     * Email address
+     * @return string
+     */
     protected function getContactEmail() : string
     {
         return $this->context->getData('contactEmail');
     }
 
+    /**
+     * URL to the lost password page
+     * @return string
+     */
     protected function getPasswordLostUrl() : string
     {
-        return PKPApplication::get()->getRequest()->url($this->context->getData('urlPath'), 'login', 'lostPassword');
+        return $this->request->getDispatcher()->url($this->request, PKPApplication::ROUTE_PAGE, $this->context->getData('urlPath'), 'login', 'lostPassword');
     }
 
+    /**
+     * URL to the individual subscription page
+     * @return string
+     */
     protected function getIndividualSubscriptionUrl() : string
     {
-        return PKPApplication::get()->getRequest()->url($this->context->getData('urlPath'), 'payments', null, null, null, 'individual');
+        return $this->request->getDispatcher()->url($this->request, PKPApplication::ROUTE_PAGE, $this->context->getData('urlPath'), 'payments', null, null, null, 'individual');
     }
 
+    /**
+     * URL to the institutional subscription page
+     * @return string
+     */
     protected function getInstitutionalSubscriptionUrl() : string
     {
-        return PKPApplication::get()->getRequest()->url($this->context->getData('urlPath'), 'payments', null, null, null, 'institutional');
+        return $this->request->getDispatcher()->url($this->request, PKPApplication::ROUTE_PAGE, $this->context->getData('urlPath'), 'payments', null, null, null, 'institutional');
     }
 
+    /**
+     * Signature of a person included as a primary contact for subscriptions
+     * @return string
+     */
     protected function getSubscriptionContactSignature() : string
     {
         $subscriptionName = $this->context->getData('subscriptionName');

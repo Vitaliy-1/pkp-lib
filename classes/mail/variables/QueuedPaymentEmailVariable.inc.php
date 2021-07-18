@@ -34,8 +34,7 @@ class QueuedPaymentEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief see Validation::description()
+     * @copydoc Validation::description()
      * TODO replace description with locale keys
      */
     protected static function description() : array
@@ -49,8 +48,7 @@ class QueuedPaymentEmailVariable extends Variable
     }
 
     /**
-     * @return array
-     * @brief see Validation::values()
+     * @copydoc Validation::values()
      */
     protected function values() : array
     {

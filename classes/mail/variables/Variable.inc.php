@@ -22,21 +22,21 @@ use ReflectionClassConstant;
 abstract class Variable
 {
     /**
+     * Maps variables with their description
      * @return string[]
-     * @brief maps variables with their description
      */
     abstract protected static function description() : array;
 
     /**
+     * Maps variables with methods to retrieve their values
      * @return string[]
-     * @brief maps variables with methods to retrieve their values
      */
     abstract protected function values() : array;
 
     /**
+     * Get description of all or specific variable
      * @param string|null $variableConst
      * @return string|string[]
-     * @brief get description of all or specific variable
      */
     static function getDescription(string $variableConst = null)
     {
@@ -51,9 +51,9 @@ abstract class Variable
     }
 
     /**
+     * Get value of all or specific variable
      * @param string|null $variableConst
      * @return string|string[]
-     * @brief get value of all or specific variable
      */
     function getValue(string $variableConst = null)
     {

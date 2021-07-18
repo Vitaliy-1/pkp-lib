@@ -420,42 +420,9 @@ class ReviewerForm extends Form
             }
         }
 
-        // Notify the reviewer via email.
-        $templateKey = $this->getData('template');
-        $mail = new SubmissionMailTemplate($submission, $templateKey, null, null, null, false);
+        // Insert a trivial notification to indicate the reviewer was added successfully.
         $userDao = DAORegistry::getDAO('UserDAO'); /** @var UserDAO $userDao */
         $reviewer = $userDao->getById($reviewerId);
-
-        if ($mail->isEnabled() && !$this->getData('skipEmail')) {
-            $user = $request->getUser();
-            $mail->addRecipient($reviewer->getEmail(), $reviewer->getFullName());
-            $mail->setBody($this->getData('personalMessage'));
-            $dispatcher = $request->getDispatcher();
-
-            // Set the additional arguments for the one click url
-            $reviewUrlArgs = ['submissionId' => $this->getSubmissionId()];
-            if ($context->getData('reviewerAccessKeysEnabled')) {
-                $accessKeyManager = new AccessKeyManager();
-                $expiryDays = ($context->getData('numWeeksPerReview') + 4) * 7;
-                $accessKey = $accessKeyManager->createKey($context->getId(), $reviewerId, $reviewAssignment->getId(), $expiryDays);
-                $reviewUrlArgs = array_merge($reviewUrlArgs, ['reviewId' => $reviewAssignment->getId(), 'key' => $accessKey]);
-            }
-
-            // Assign the remaining parameters
-            $mail->assignParams([
-                'reviewerName' => $reviewer->getFullName(),
-                'responseDueDate' => $responseDueDate,
-                'reviewDueDate' => $reviewDueDate,
-                'reviewerUserName' => $reviewer->getUsername(),
-                'submissionReviewUrl' => $dispatcher->url($request, PKPApplication::ROUTE_PAGE, null, 'reviewer', 'submission', null, $reviewUrlArgs)
-            ]);
-            if (!$mail->send($request)) {
-                $notificationMgr = new NotificationManager();
-                $notificationMgr->createTrivialNotification($request->getUser()->getId(), PKPNotification::NOTIFICATION_TYPE_ERROR, ['contents' => __('email.compose.error')]);
-            }
-        }
-
-        // Insert a trivial notification to indicate the reviewer was added successfully.
         $currentUser = $request->getUser();
         $notificationMgr = new NotificationManager();
         $msgKey = $this->getData('skipEmail') ? 'notification.addedReviewerNoEmail' : 'notification.addedReviewer';

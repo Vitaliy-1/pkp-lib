@@ -20,6 +20,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Mail\Mailer as IlluminateMailer;
 use InvalidArgumentException;
+use PKP\i18n\PKPLocale;
 use Swift_Mailer;
 
 class Mailer extends IlluminateMailer
@@ -52,10 +53,10 @@ class Mailer extends IlluminateMailer
      * @param array $data variable => value, 'message' is reserved for the Laravel's Swift Message (Illuminate\Mail\Message)
      * @return string
      * @brief render email content into HTML string
+     * @throws Exception
      */
     protected function renderView($view, $data) : string
     {
-
         if ($view instanceof Htmlable)
             // return HTML without data compiling
             return $view->toHtml();
@@ -72,14 +73,15 @@ class Mailer extends IlluminateMailer
      * @return string compiled string with substitute variables
      * @throws Exception
      */
-    public function compileParams(string $view, array $data) : string
+    public function compileParams(string $view, array $data, string $locale = null) : string
     {
+        $data = $this->localizeData($data, $locale);
         unset($data[Mailable::DATA_KEY_MESSAGE]); // Remove pre-set message variable
 
         $stack = [];
         $resultString = '';
         $variable = '';
-        foreach ($template = mb_str_split($view) as $key => $char) {
+        foreach ($template = str_split($view) as $key => $char) {
             if ($this->openTags($key, $char, $template)) {
                 if (empty($stack)) {
                     $stack[] = $char;
@@ -108,6 +110,33 @@ class Mailer extends IlluminateMailer
             throw new Exception('Template variable tag should be closed');
 
         return $resultString;
+    }
+
+    /**
+     * @param array $data
+     * @param string|null $locale
+     * @return array localized data
+     */
+    protected function localizeData(array $data, string $locale = null) : array
+    {
+        if (is_null($locale))
+            $locale = PKPLocale::getLocale();
+
+        if (!PKPLocale::isLocaleValid($locale))
+            throw new InvalidArgumentException($locale . ' isn\'t recognized as a valid locale');
+
+        return array_map(function ($varValue) use ($locale) {
+
+            // Array values contain localized template data
+            if (is_array($varValue)) {
+                if (array_key_exists($locale, $varValue)) {
+                    return $varValue[$locale];
+                } else {
+                    throw new InvalidArgumentException('Template variables doesn\'t have localization for the ' . $locale . ' locale' );
+                }
+            }
+            return $varValue;
+        }, $data);
     }
 
     /**

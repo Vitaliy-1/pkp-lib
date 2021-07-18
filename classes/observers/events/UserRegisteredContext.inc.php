@@ -17,11 +17,9 @@ namespace PKP\observers\events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 use PKP\context\Context;
-use PKP\core\NotificationEvent;
-use PKP\site\Site;
 use PKP\user\User;
 
-class UserRegisteredContext extends NotificationEvent
+class UserRegisteredContext
 {
     use Dispatchable;
 

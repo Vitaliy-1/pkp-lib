@@ -15,16 +15,10 @@
 
 namespace PKP\mail\variables;
 
-use APP\core\Application;
-use APP\core\Services;
-use InvalidArgumentException;
-use PKP\context\PKPSectionDAO;
 use PKP\core\PKPApplication;
-use PKP\db\DAORegistry;
+use APP\facades\Repo;
+use PKP\i18n\PKPLocale;
 use PKP\publication\PKPPublication;
-use PKP\security\Role;
-use PKP\security\UserGroup;
-use PKP\security\UserGroupDAO;
 use PKP\submission\PKPSubmission;
 
 class SubmissionEmailVariable extends Variable
@@ -48,12 +42,11 @@ class SubmissionEmailVariable extends Variable
     {
         $this->submission = $submission;
         $currentPublicationId = $this->submission->getData('currentPublicationId');
-        $this->currentPublication = Services::get('publication')->get($currentPublicationId);
+        $this->currentPublication = Repo::publication()->get($currentPublicationId);
     }
 
     /**
-     * @return string[]
-     * @brief maps variables with their description
+     * @copydoc Variable::description()
      * TODO replace description with locale keys
      */
     protected static function description() : array
@@ -69,8 +62,7 @@ class SubmissionEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief maps variables with their retrieval method
+     * @copydoc Variable::values()
      */
     protected function values() : array
     {
@@ -85,17 +77,22 @@ class SubmissionEmailVariable extends Variable
     }
 
     /**
-     * @return string
-     * @brief retrieves the full title of the current publication
+     * Full title of the current publication
+     * @return array [locale => title]
      */
-    protected function getPublicationTitle() : string
+    protected function getPublicationTitle() : array
     {
-        return $this->currentPublication->getLocalizedFullTitle();
+        $fullTitlesLocalized = [];
+        $supportedLocales = PKPLocale::getSupportedLocales();
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $fullTitlesLocalized[$localeKey] = $this->currentPublication->getLocalizedTitle($localeKey);
+        }
+        return $fullTitlesLocalized;
     }
 
     /**
+     * ID of associated submission
      * @return int
-     * @brief retrieves ID of associated submission
      */
     protected function getSubmissionId() : int
     {
@@ -103,33 +100,45 @@ class SubmissionEmailVariable extends Variable
     }
 
     /**
-     * @return string
-     * @brief retrieves localized abstract of the current publication
+     * Array containing abstracts of the current publication in available locales
+     * @return array
      */
-    protected function getPublicationAbstract() : string
+    protected function getPublicationAbstract() : array
     {
-        return $this->currentPublication->getLocalizedData('abstract');
+        return $this->currentPublication->getData('abstract');
     }
 
     /**
-     * @return string
-     * @brief retrieves a list of authors as a string separated by a comma
+     * List of authors as a string separated by a comma
+     * @return array [locale => authorNames]
      */
-    protected function getAuthorString() : string
+    protected function getAuthorString() : array
     {
-        $userGroupDao = DAORegistry::getDAO('UserGroupDAO'); /* @var $userGroupDao UserGroupDAO */
-        $contextId = $this->submission->getData('contextId');
-        $userGroups = $userGroupDao->getByRoleId($contextId, Role::ROLE_ID_AUTHOR)->toArray();
-        return $this->currentPublication->getAuthorString($userGroups);
+        $authorStringLocalized = [];
+        $authors = $this->currentPublication->getData('authors');
+        $supportedLocales = PKPLocale::getSupportedLocales();
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $lastKey = array_key_last($authors);
+            $authorString = '';
+            foreach ($authors as $key => $author) {
+                $authorString .= $author->getFullName(true, false, $localeKey);
+                if ($key !== $lastKey) {
+                    $authorString .= ', ';
+                }
+            }
+            $authorStringLocalized[$localeKey] = $authorString;
+        }
+
+        return $authorStringLocalized;
     }
 
     /**
+     * URL to a current workflow stage of the submission
      * @return string
-     * @brief retrieves a URL to a current workflow stage of the submission
      */
     protected function getSubmissionUrl() : string
     {
-        $request = Application::get()->getRequest();
+        $request = PKPApplication::get()->getRequest();
         return $request->getDispatcher()->url($request, PKPApplication::ROUTE_PAGE, null, 'workflow', 'index', [$this->submission->getId(), $this->submission->getData('stageId')]);
     }
 }

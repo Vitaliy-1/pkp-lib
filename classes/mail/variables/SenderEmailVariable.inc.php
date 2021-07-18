@@ -15,6 +15,7 @@
 
 namespace PKP\mail\variables;
 
+use PKP\i18n\PKPLocale;
 use PKP\user\User;
 
 class SenderEmailVariable extends Variable
@@ -35,8 +36,7 @@ class SenderEmailVariable extends Variable
     }
 
     /**
-     * @return string[]
-     * @brief see Variable description
+     * @copydoc Variable::description()
      * TODO replace description with locale keys
      */
     protected static function description(): array
@@ -50,31 +50,62 @@ class SenderEmailVariable extends Variable
     }
 
     /**
-     * @return array
-     * @brief see Variable::values
+     * @copydoc Variable::values()
      */
     protected function values(): array
     {
         return
         [
-            self::SENDER_NAME => $this->getUserName(),
+            self::SENDER_NAME => $this->getUserFullName(),
             self::SENDER_EMAIL => $this->getUserEmail(),
             self::SENDER_CONTACT_SIGNATURE => $this->getUserContactSignature(),
         ];
     }
 
-    protected function getUserName() : string
+    /**
+     * Array of sender's full name in supported locales
+     * @return array [localeKey => username]
+     */
+    protected function getUserFullName() : array
     {
-        return $this->sender->getData('fullName');
+        $fullNameLocalized = [];
+        $supportedLocales = PKPLocale::getSupportedLocales();
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $fullNameLocalized[$localeKey] = $this->sender->getFullName(true, false, $localeKey);
+        }
+        return $fullNameLocalized;
     }
 
+    /**
+     * Sender's email
+     * @return string
+     */
     protected function getUserEmail() : string
     {
         return $this->sender->getData('email');
     }
 
-    protected function getUserContactSignature() : string
+    /**
+     * Sender's contact signature
+     * @return array
+     */
+    protected function getUserContactSignature() : array
     {
-        return $this->sender->getContactSignature();
+        $supportedLocales = PKPLocale::getSupportedLocales();
+        PKPLocale::requireComponents(LOCALE_COMPONENT_PKP_USER);
+        $signatureLocalized = [];
+        foreach ($supportedLocales as $localeKey => $localeValue) {
+            $signature = htmlspecialchars($this->sender->getFullName(true, false, $localeKey));
+            if ($a = $this->sender->getData('affiliation', $localeKey)) {
+                $signature .= '<br/>' . htmlspecialchars($a);
+            }
+            if ($p = $this->sender->getPhone()) {
+                $signature .= '<br/>' . __('user.phone') . ' ' . htmlspecialchars($p);
+            }
+            $signature .= '<br/>' . htmlspecialchars($this->sender->getEmail());
+            $signatureLocalized[$localeKey] = $signature;
+        }
+
+        return $signatureLocalized;
     }
 }

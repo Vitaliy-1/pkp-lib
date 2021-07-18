@@ -36,6 +36,7 @@ use PKP\log\SubmissionLog;
 use PKP\mail\SubmissionMailTemplate;
 use PKP\notification\PKPNotification;
 
+use PKP\observers\events\ReviewerUnassigned;
 use PKP\security\authorization\internal\ReviewAssignmentRequiredPolicy;
 use PKP\security\authorization\internal\ReviewRoundRequiredPolicy;
 use PKP\security\authorization\WorkflowStageAccessPolicy;
@@ -538,7 +539,12 @@ class PKPReviewerGridHandler extends GridHandler
             return new JSONMessage(false, __('editor.review.errorReinstatingReviewer'));
         }
 
-        $reinstateReviewerForm->execute();
+        if ($reinstateReviewerForm->execute()) {
+            $userDao = DAORegistry::getDAO('UserDAO');
+            $reviewer = $userDao->getById($reviewAssignment->getReviewerId());
+            event(new ReviewerReinstated($submission, $reviewer, $reviewAssignment));
+        }
+
         return \PKP\db\DAO::getDataChangedEvent($reviewAssignment->getId());
     }
 
@@ -564,7 +570,12 @@ class PKPReviewerGridHandler extends GridHandler
             return new JSONMessage(false, __('editor.review.errorDeletingReviewer'));
         }
 
-        $unassignReviewerForm->execute();
+        if ($unassignReviewerForm->execute()) {
+            $userDao = DAORegistry::getDAO('UserDAO');
+            $reviewer = $userDao->getById($reviewAssignment->getReviewerId());
+            event(new ReviewerUnassigned($submission, $reviewer, $reviewAssignment));
+        }
+
         return \PKP\db\DAO::getDataChangedEvent($reviewAssignment->getId());
     }
 
