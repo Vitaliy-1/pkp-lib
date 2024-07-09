@@ -15,13 +15,16 @@
 
 namespace PKP\user;
 
+use Eloquence\Behaviours\HasCamelCasing;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Query\Builder;
-use PKP\userGroup\UserGroup;
+use PKP\userGroup\UserGroupModel;
 
 class UserModel extends Model
 {
+    use HasCamelCasing;
+
     protected $table = 'users';
     protected $primaryKey = 'user_id';
     public const CREATED_AT = 'date_registered';
@@ -77,9 +80,9 @@ class UserModel extends Model
     /**
      * Many to many relationship with user groups
      */
-    public function groups(): BelongsToMany
+    public function userGroups(): BelongsToMany
     {
-        return $this->belongsToMany(UserGroup::class);
+        return $this->belongsToMany(UserGroupModel::class, 'user_user_groups', 'user_id', 'user_group_id');
     }
 
     public function scopeByRoleIds(Builder $query, array $roleIds): void
@@ -91,4 +94,6 @@ class UserModel extends Model
     {
 
     }
+
+
 }
