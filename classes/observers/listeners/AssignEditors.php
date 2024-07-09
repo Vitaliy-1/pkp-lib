@@ -21,7 +21,7 @@ namespace PKP\observers\listeners;
 use APP\core\Application;
 use APP\facades\Repo;
 use APP\notification\NotificationManager;
-use Illuminate\Database\Query\Builder;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Mail;
 use PKP\context\SubEditorsDAO;
@@ -54,13 +54,7 @@ class AssignEditors
             return;
         }
 
-        $managers = Repo::user()
-            ->getCollector()
-            ->filterByRoleIds([Role::ROLE_ID_MANAGER])
-            ->filterByContextIds([$event->context->getId()])
-            ->getMany();
-
-        $managers = UserModel::with(['userGroup' => fn (Builder $query) =>
+        $managers = UserModel::with(['userGroups' => fn (Builder $query) =>
             $query->whereIn('role_id', [Role::ROLE_ID_MANAGER])->whereIn('context_id', [$event->context->getId()])
         ])->get();
 
@@ -76,7 +70,7 @@ class AssignEditors
             // Send notification
             $notification = $notificationManager->createNotification(
                 Application::get()->getRequest(),
-                $manager->getId(),
+                $manager->userId,
                 Notification::NOTIFICATION_TYPE_EDITOR_ASSIGNMENT_REQUIRED,
                 $event->context->getId(),
                 Application::ASSOC_TYPE_SUBMISSION,
@@ -89,7 +83,7 @@ class AssignEditors
                 Notification::NOTIFICATION_TYPE_SUBMISSION_SUBMITTED,
                 $notificationSubscriptionSettingsDao->getNotificationSubscriptionSettings(
                     NotificationSubscriptionSettingsDAO::BLOCKED_EMAIL_NOTIFICATION_KEY,
-                    $manager->getId(),
+                    $manager->userId,
                     $event->context->getId()
                 )
             );
