@@ -21,7 +21,6 @@ namespace PKP\observers\listeners;
 use APP\core\Application;
 use APP\facades\Repo;
 use APP\notification\NotificationManager;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Mail;
 use PKP\context\SubEditorsDAO;
@@ -54,9 +53,9 @@ class AssignEditors
             return;
         }
 
-        $managers = UserModel::with(['userGroups' => fn (Builder $query) =>
-            $query->whereIn('role_id', [Role::ROLE_ID_MANAGER])->whereIn('context_id', [$event->context->getId()])
-        ])->get();
+        $managers = UserModel::withContextIds([$event->context->getId()])
+            ->withRoleIds([Role::ROLE_ID_MANAGER])
+            ->get();
 
         if (!$managers->count()) {
             return;
