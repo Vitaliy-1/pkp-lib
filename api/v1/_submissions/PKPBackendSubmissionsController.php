@@ -36,6 +36,7 @@ use PKP\security\authorization\UserRolesRequiredPolicy;
 use PKP\security\Role;
 use PKP\submission\DashboardView;
 use PKP\submission\PKPSubmission;
+use PKP\user\UserModel;
 
 abstract class PKPBackendSubmissionsController extends PKPBaseController
 {
@@ -240,6 +241,9 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
         $request = Application::get()->getRequest();
         $user = $request->getUser();
         $context = $request->getContext();
+        $userModel = UserModel::where('setting_name', 'familyName')->find(1);
+        error_log(print_r($userModel->username, true));
+
         if (!$context) {
             return response()->json([
                 'error' => __('api.404.resourceNotFound')

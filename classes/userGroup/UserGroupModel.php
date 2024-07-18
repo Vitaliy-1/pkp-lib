@@ -17,6 +17,7 @@ namespace PKP\userGroup;
 use Eloquence\Behaviours\HasCamelCasing;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Query\Builder;
 use PKP\user\UserModel;
 
 class UserGroupModel extends Model
@@ -52,5 +53,15 @@ class UserGroupModel extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(UserModel::class, 'user_user_groups', 'user_group_id', 'user_id');
+    }
+
+    public function scopeWithContextIds(Builder $builder, array $contextIds): void
+    {
+        $builder->whereIn('context_id', $contextIds);
+    }
+
+    public function scopeWithRoleIds(Builder $builder, array $roleIds): void
+    {
+        $builder->whereIn('role_id', $roleIds);
     }
 }

@@ -16,9 +16,10 @@
 namespace PKP\user;
 
 use Eloquence\Behaviours\HasCamelCasing;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Query\Builder;
+use PKP\core\SettingsScope;
 use PKP\userGroup\UserGroupModel;
 
 class UserModel extends Model
@@ -29,6 +30,7 @@ class UserModel extends Model
     protected $primaryKey = 'user_id';
     public const CREATED_AT = 'date_registered';
     public const UPDATED_AT = null;
+    protected string $settingsTable = 'user_settings';
 
     /**
      * Cast attributes to their native type
@@ -58,6 +60,7 @@ class UserModel extends Model
         'disabled_reason' => 'string',
         'inlineHelp' => 'boolean',
         'rememberToken' => 'string',
+        'familyName' => 'string',
     ];
 
     /**
@@ -77,6 +80,16 @@ class UserModel extends Model
      */
     protected $fillable = [];
 
+    protected $settings = [
+        'familyName'
+    ];
+
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+        //$this->fillSettings(); // fill properties from settings after main model attributes
+    }
+
     /**
      * Many to many relationship with user groups
      */
@@ -85,15 +98,32 @@ class UserModel extends Model
         return $this->belongsToMany(UserGroupModel::class, 'user_user_groups', 'user_id', 'user_group_id');
     }
 
-    public function scopeByRoleIds(Builder $query, array $roleIds): void
+    public function scopeWithRoleIds(Builder $query, array $roleIds): void
     {
-
+        $query->with(['userGroups' => fn (BelongsToMany $query) =>
+            $query->whereIn('role_id', $roleIds)
+        ]);
     }
 
-    public function scopeWithContextId(Builder $query, array $contextIds): void
+    public function scopeWithContextIds(Builder $query, array $contextIds): void
     {
-
+        $query->with(['userGroups' => fn (BelongsToMany $query) =>
+            $query->whereIn('context_id', $contextIds)
+        ]);
     }
 
+    public function getSettingsTable(): string
+    {
+        return $this->settingsTable;
+    }
 
+    public function getSettings(): array
+    {
+        return $this->getSettings();
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new SettingsScope());
+    }
 }
