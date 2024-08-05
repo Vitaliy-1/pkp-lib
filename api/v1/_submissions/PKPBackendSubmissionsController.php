@@ -142,6 +142,15 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
                         Role::ROLE_ID_REVIEWER,
                     ])
                 ]);
+
+            // Endpoint for testing new User Model; TODO remove before merging
+            Route::get('testUserModel', $this->getTestUsers(...))
+                ->name('_submission.getTestUsers')
+                ->middleware([
+                    self::roleAuthorizer([
+                        Role::ROLE_ID_MANAGER,
+                    ])
+                ]);
         }
     }
 
@@ -241,8 +250,6 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
         $request = Application::get()->getRequest();
         $user = $request->getUser();
         $context = $request->getContext();
-        $userModel = UserModel::where('setting_name', 'familyName')->find(1);
-        error_log(print_r($userModel->username, true));
 
         if (!$context) {
             return response()->json([
@@ -511,5 +518,26 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
     {
         $userRoles = $this->getAuthorizedContextObject(Application::ASSOC_TYPE_USER_ROLES);
         return !empty(array_intersect([Role::ROLE_ID_SITE_ADMIN, Role::ROLE_ID_MANAGER], $userRoles));
+    }
+
+    public function getTestUsers(Request $illuminateRequest): JsonResponse
+    {
+        $userModel = UserModel::find(2);
+        $userModel->email = 'rvaca10@mailinator.com';
+        $userModel->familyName = [
+            'en' => 'Waca',
+            'fr_CA' => 'Laka'
+        ];
+        $userModel->fill([
+            'phone' => 55555555555,
+            'givenName' => [
+                'en' => 'Tpaal'
+            ]
+        ]);
+
+        $userModel->save();
+        $userModel->refresh();
+
+        return response()->json($userModel->toArray(), Response::HTTP_OK);
     }
 }
