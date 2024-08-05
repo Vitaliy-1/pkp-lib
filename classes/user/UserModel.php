@@ -8,8 +8,6 @@
  *
  * @class UserModel
  *
- * @ingroup UserModel
- *
  * @brief Basic class describing users existing in the system.
  */
 
@@ -19,7 +17,7 @@ use Eloquence\Behaviours\HasCamelCasing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use PKP\core\SettingsScope;
+use PKP\core\SettingsBuilder;
 use PKP\userGroup\UserGroupModel;
 
 class UserModel extends Model
@@ -78,17 +76,16 @@ class UserModel extends Model
      *
      * @var array<int, string>
      */
-    protected $fillable = [];
-
-    protected $settings = [
-        'familyName'
+    protected $fillable = [
+        'phone',
+        'givenName'
     ];
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        //$this->fillSettings(); // fill properties from settings after main model attributes
-    }
+    protected array $settings = [
+        'familyName',
+        'givenName',
+        'affiliation',
+    ];
 
     /**
      * Many to many relationship with user groups
@@ -117,13 +114,24 @@ class UserModel extends Model
         return $this->settingsTable;
     }
 
+    /**
+     * Get supported settings
+     * TODO add a hook for plugins
+     */
     public function getSettings(): array
     {
-        return $this->getSettings();
+        return $this->settings;
     }
 
-    protected static function booted(): void
+    /**
+     * Create a new Eloquent query builder for the model that supports settings table
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     *
+     * @return \Illuminate\Database\Eloquent\Builder|static
+     */
+    public function newEloquentBuilder($query)
     {
-        static::addGlobalScope(new SettingsScope());
+        return new SettingsBuilder($query);
     }
 }
