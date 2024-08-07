@@ -81,10 +81,13 @@ class UserModel extends Model
         'givenName'
     ];
 
+    /**
+     * @var array|true[] [setting name => is multilingual]
+     */
     protected array $settings = [
-        'familyName',
-        'givenName',
-        'affiliation',
+        'familyName' => true,
+        'givenName' => true,
+        'affiliation' => true,
     ];
 
     /**
