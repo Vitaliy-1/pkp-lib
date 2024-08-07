@@ -48,8 +48,7 @@ class SettingsBuilder extends Builder
     {
         // Separate Model's primary values from settings
         [$settingValues, $primaryValues] = collect($values)->partition(
-            fn (array|string $value, string $key) =>
-            in_array(Str::camel($key), $this->model->getSettings())
+            fn (array|string $value, string $key) => array_key_exists(Str::camel($key), $this->model->getSettings())
         );
 
         // Don't update settings if they aren't set
@@ -59,8 +58,7 @@ class SettingsBuilder extends Builder
 
         // TODO Eloquent transforms attributes to snake case, find and override instead of transforming here
         $settingValues = $settingValues->mapWithKeys(
-            fn (array|string $value, string $key) =>
-            [Str::camel($key) => $value]
+            fn (array|string $value, string $key) => [Str::camel($key) => $value]
         );
 
         $u = $this->model->getTable();
@@ -84,6 +82,47 @@ class SettingsBuilder extends Builder
             ]));
 
         return $count;
+    }
+
+    /**
+     * Insert the given attributes and set the ID on the model.
+     * Overrides Builder's method to insert setting values for a models with
+     *
+     * @param  string|null  $sequence
+     *
+     * @return int
+     */
+    public function insertGetId(array $values, $sequence = null)
+    {
+        // Separate Model's primary values from settings
+        [$settingValues, $primaryValues] = collect($values)->partition(
+            fn (array|string $value, string $key) => array_key_exists(Str::camel($key), $this->model->getSettings())
+        );
+
+        if ($settingValues->isEmpty()) {
+            return parent::insertGetId($values, $sequence);
+        }
+
+        $id = parent::insertGetId($primaryValues, $sequence);
+
+        $rows = [];
+        $settingValues->each(function (string|array $settingValue, string $settingName) use ($id, &$rows) {
+            if ($this->isMultilingual($settingName)) {
+                foreach ($settingValue as $locale => $localizedValue) {
+                    $rows[] = [
+                        'user_id' => $id, 'locale' => $locale, 'setting_name' => $settingName, 'setting_value' => $localizedValue
+                    ];
+                }
+            } else {
+                $rows[] = [
+                    'user_id' => $id, 'setting_name' => $settingName, 'setting_value' => $settingValue
+                ];
+            }
+        });
+
+        DB::table($this->model->getSettingsTable())->insert($rows);
+
+        return $id;
     }
 
     /*
@@ -168,13 +207,12 @@ class SettingsBuilder extends Builder
      * Helper method to build a query to update settings with a conditional statement:
      * SET settings_value = CASE WHEN setting_name='' AND locale=''...
      */
-    public function buildUpdateSql(Collection $settingValues, string $us, QueryBuilder $query): string
+    protected function buildUpdateSql(Collection $settingValues, string $us, QueryBuilder $query): string
     {
         $sql = 'CASE ';
         $bindings = [];
         $settingValues->each(function (array|string $settingValue, string $settingName) use (&$sql, &$bindings, $us) {
-            // TODO Check for multilingual attributes instead of an array
-            if (is_array($settingValue)) {
+            if ($this->isMultilingual($settingName)) {
                 foreach ($settingValue as $locale => $localizedValue) {
                     $sql .= 'WHEN ' . $us . '.setting_name=? AND ' . $us . '.locale=? THEN ? ';
                     $bindings = array_merge($bindings, [$settingName, $locale, $localizedValue]);
@@ -190,5 +228,13 @@ class SettingsBuilder extends Builder
         $query->bindings['where'] = array_merge($bindings, $query->bindings['where']);
 
         return $sql;
+    }
+
+    /**
+     * Checks if setting is multilingual
+     */
+    protected function isMultilingual(string $settingName): bool
+    {
+        return array_key_exists($settingName, $this->model->getSettings()) && $this->model->getSettings()[$settingName];
     }
 };
