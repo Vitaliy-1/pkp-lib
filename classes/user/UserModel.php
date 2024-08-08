@@ -77,8 +77,13 @@ class UserModel extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'username',
+        'email',
         'phone',
-        'givenName'
+        'givenName',
+        'familyName',
+        'affiliation',
+        'password' // TODO, remove from mass assignable
     ];
 
     /**
