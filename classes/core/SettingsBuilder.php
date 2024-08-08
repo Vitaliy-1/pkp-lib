@@ -99,14 +99,15 @@ class SettingsBuilder extends Builder
             fn (array|string $value, string $key) => array_key_exists(Str::camel($key), $this->model->getSettings())
         );
 
-        if ($settingValues->isEmpty()) {
-            return parent::insertGetId($values, $sequence);
-        }
+        $id = parent::insertGetId($primaryValues->toArray(), $sequence);
 
-        $id = parent::insertGetId($primaryValues, $sequence);
+        if ($settingValues->isEmpty()) {
+            return $id;
+        }
 
         $rows = [];
         $settingValues->each(function (string|array $settingValue, string $settingName) use ($id, &$rows) {
+            $settingName = Str::camel($settingName);
             if ($this->isMultilingual($settingName)) {
                 foreach ($settingValue as $locale => $localizedValue) {
                     $rows[] = [
@@ -115,12 +116,31 @@ class SettingsBuilder extends Builder
                 }
             } else {
                 $rows[] = [
-                    'user_id' => $id, 'setting_name' => $settingName, 'setting_value' => $settingValue
+                    'user_id' => $id, 'locale' => '', 'setting_name' => $settingName, 'setting_value' => $settingValue
                 ];
             }
         });
 
         DB::table($this->model->getSettingsTable())->insert($rows);
+
+        return $id;
+    }
+
+    /**
+     * Delete model with settings
+     */
+    public function delete(): int
+    {
+        $id = parent::delete();
+        if (!$id) {
+            return $id;
+        }
+
+        DB::table($this->model->getSettingsTable())->where(
+            $this->model->getKeyName(),
+            $this->model->getRawOriginal($this->model->getKeyName()) ?? $this->model->getKey()
+        )
+            ->delete();
 
         return $id;
     }
