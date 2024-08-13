@@ -24,7 +24,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
 use PKP\API\v1\submissions\AnonymizeData;
 use PKP\config\Config;
 use PKP\core\PKPBaseController;
@@ -523,36 +522,8 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
 
     public function getTestUsers(Request $illuminateRequest): JsonResponse
     {
-        $userModel = UserModel::find(2);
-        $userModel->email = 'rvaca10@mailinator.com';
-        $userModel->familyName = [
-            'en' => 'Waca',
-            'fr_CA' => 'Laka'
-        ];
-        $userModel->fill([
-            'phone' => 55555555555,
-            'givenName' => [
-                'en' => 'Tpaal'
-            ]
-        ]);
+        $userModels = UserModel::whereIn('givenName', ['Daniel', 'Tpaal'])->get();
 
-        $userModel->save();
-        $userModel->refresh();
-
-        $newUser = new UserModel();
-        $newUser->fill([
-            'email' => 'newUserEmail7@mailinator.com',
-            'givenName' => [
-                'en' => 'Skywaker',
-                'fr_CA' => 'Cielmarcheur'
-            ],
-            'username' => 'lskywalker7',
-            'password' => Str::random(10),
-        ]);
-
-        $newUser->save();
-        $newUser->refresh();
-
-        return response()->json($newUser->toArray(), Response::HTTP_OK);
+        return response()->json($userModels->toArray(), Response::HTTP_OK);
     }
 }

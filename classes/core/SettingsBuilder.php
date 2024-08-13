@@ -14,6 +14,9 @@
 
 namespace PKP\core;
 
+use Closure;
+use Illuminate\Contracts\Database\Query\ConditionExpression;
+use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Arr;
@@ -139,10 +142,102 @@ class SettingsBuilder extends Builder
         DB::table($this->model->getSettingsTable())->where(
             $this->model->getKeyName(),
             $this->model->getRawOriginal($this->model->getKeyName()) ?? $this->model->getKey()
-        )
-            ->delete();
+        )->delete();
 
         return $id;
+    }
+
+    /**
+     * Add a basic where clause to the query.
+     * Overrides Eloquent Builder method to support settings table
+     *
+     * @param  \Closure|string|array|\Illuminate\Contracts\Database\Query\Expression  $column
+     * @param  string  $boolean
+     *
+     * @return $this
+     */
+    public function where($column, $operator = null, $value = null, $boolean = 'and')
+    {
+        if ($column instanceof ConditionExpression || $column instanceof Closure) {
+            return parent::where($column, $operator, $value, $boolean);
+        }
+
+        $settings = [];
+        $primaryColumn = false;
+
+        // See Illuminate\Database\Query\Builder::where()
+        [$value, $operator] = $this->query->prepareValueAndOperator(
+            $value,
+            $operator,
+            func_num_args() === 2
+        );
+
+        if (is_string($column)) {
+            if (array_key_exists($column, $this->model->getSettings())) {
+                $settings[$column] = $value;
+            } else {
+                $primaryColumn = $column;
+            }
+        }
+
+        if (is_array($column)) {
+            $modelSettingsList = array_keys($this->model->getSettings());
+            $settings = array_intersect($column, $modelSettingsList);
+            $primaryColumn = array_diff($column, $modelSettingsList);
+        }
+
+        if (empty($settings)) {
+            return parent::where($column, $operator, $value, $boolean);
+        }
+
+        $where = [];
+        foreach ($settings as $settingName => $settingValue) {
+            $where = array_merge($where, [
+                'setting_name' => $settingName,
+                'setting_value' => $settingValue,
+            ]);
+        }
+
+        $this->query->whereIn(
+            $this->model->getKeyName(),
+            fn (QueryBuilder $query) =>
+            $query->select($this->model->getKeyName())->from($this->model->getSettingsTable())->where($where, null, null, $boolean)
+        );
+
+        if (!empty($primaryColumn)) {
+            parent::where($primaryColumn, $operator, $value, $boolean);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add a "where in" clause to the query.
+     * Overrides Illuminate\Database\Query\Builder to support settings in select queries
+     *
+     * @param  \Illuminate\Contracts\Database\Query\Expression|string  $column
+     * @param  string  $boolean
+     * @param  bool  $not
+     *
+     * @return $this
+     */
+    public function whereIn($column, $values, $boolean = 'and', $not = false)
+    {
+        if ($column instanceof Expression || !array_key_exists($column, $this->model->getSettings())) {
+            return parent::whereIn($column, $values, $boolean, $not);
+        }
+
+        $this->query->whereIn(
+            $this->model->getKeyName(),
+            fn (QueryBuilder $query) =>
+            $query
+                ->select($this->model->getKeyName())
+                ->from($this->model->getSettingsTable())
+                ->where('setting_name', $column)
+                ->whereIn('setting_value', $values, $boolean, $not)
+        );
+
+        return $this;
     }
 
     /*
