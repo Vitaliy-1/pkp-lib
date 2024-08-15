@@ -153,6 +153,8 @@ class SettingsBuilder extends Builder
      *
      * @param  \Closure|string|array|\Illuminate\Contracts\Database\Query\Expression  $column
      * @param  string  $boolean
+     * @param null|mixed $operator
+     * @param null|mixed $value
      *
      * @return $this
      */
@@ -243,10 +245,13 @@ class SettingsBuilder extends Builder
     /*
      * Augment model with data from the settings table
      */
-    protected function getModelWithSettings(array|string $columns = ['*'])
+    protected function getModelWithSettings(array|string $columns = ['*']): Collection
     {
         // First, get all Model columns from the main table
         $rows = $this->query->get();
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
 
         // Retrieve records from the settings table associated with the primary Model IDs
         $primaryKey = $this->model->getKeyName();

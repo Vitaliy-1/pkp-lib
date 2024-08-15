@@ -522,7 +522,7 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
 
     public function getTestUsers(Request $illuminateRequest): JsonResponse
     {
-        $userModels = UserModel::whereIn('givenName', ['Daniel', 'Tpaal'])->get();
+        $userModels = UserModel::withSearchFilter('Vaca')->get();
 
         return response()->json($userModels->toArray(), Response::HTTP_OK);
     }
