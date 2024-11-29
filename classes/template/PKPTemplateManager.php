@@ -60,9 +60,9 @@ use PKP\submission\DashboardView;
 use PKP\submission\GenreDAO;
 use PKP\submission\PKPSubmission;
 use PKP\submissionFile\SubmissionFile;
+use PKP\userGroup\UserGroup;
 use Smarty;
 use Smarty_Internal_Template;
-use PKP\userGroup\UserGroup;
 
 require_once('./lib/pkp/lib/vendor/smarty/smarty/libs/plugins/modifier.escape.php'); // Seems to be needed?
 
@@ -988,7 +988,7 @@ class PKPTemplateManager extends Smarty
 
                 if ($request->getContext()) {
                     if (count(array_intersect([Role::ROLE_ID_MANAGER, Role::ROLE_ID_SITE_ADMIN, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT, Role::ROLE_ID_REVIEWER, Role::ROLE_ID_AUTHOR], $userRoles))) {
-                        if(Config::getVar('features', 'enable_new_submission_listing')) {
+                        if (Config::getVar('features', 'enable_new_submission_listing')) {
                             if (count(array_intersect([Role::ROLE_ID_MANAGER, Role::ROLE_ID_SITE_ADMIN, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT], $userRoles))) {
                                 $dashboardViews = Repo::submission()->getDashboardViews($request->getContext(), $request->getUser(), [Role::ROLE_ID_MANAGER, Role::ROLE_ID_SITE_ADMIN, Role::ROLE_ID_SUB_EDITOR, Role::ROLE_ID_ASSISTANT]);
                                 $requestedPage = $router->getRequestedPage($request);
@@ -1017,7 +1017,7 @@ class PKPTemplateManager extends Smarty
                                     'submenu' => $viewsData
                                 ];
                             }
-                            if(count(array_intersect([ Role::ROLE_ID_REVIEWER], $userRoles))) {
+                            if (count(array_intersect([ Role::ROLE_ID_REVIEWER], $userRoles))) {
                                 $dashboardViews = Repo::submission()->getDashboardViews($request->getContext(), $request->getUser(), [Role::ROLE_ID_REVIEWER]);
                                 $requestedPage = $router->getRequestedPage($request);
                                 $requestedOp = $router->getRequestedOp($request);
@@ -1038,7 +1038,7 @@ class PKPTemplateManager extends Smarty
                                     'icon' => 'ReviewAssignments',
                                 ];
                             }
-                            if(count(array_intersect([  Role::ROLE_ID_AUTHOR], $userRoles))) {
+                            if (count(array_intersect([  Role::ROLE_ID_AUTHOR], $userRoles))) {
                                 $dashboardViews = Repo::submission()->getDashboardViews($request->getContext(), $request->getUser(), [Role::ROLE_ID_AUTHOR]);
                                 $requestedPage = $router->getRequestedPage($request);
                                 $requestedOp = $router->getRequestedOp($request);
@@ -1113,7 +1113,7 @@ class PKPTemplateManager extends Smarty
                         }
 
                         $userGroups = (array) $router->getHandler()->getAuthorizedContextObject(Application::ASSOC_TYPE_USER_GROUP);
-                        $hasSettingsAccess = array_reduce($userGroups, fn ($carry, $userGroup) => $carry || $userGroup->getPermitSettings(), false);
+                        $hasSettingsAccess = array_reduce($userGroups, fn ($carry, $userGroup) => $carry || $userGroup->permitSettings, false);
                         if ($hasSettingsAccess) {
                             $menu['settings'] = [
                                 'name' => __('navigation.settings'),
@@ -1344,15 +1344,15 @@ class PKPTemplateManager extends Smarty
                         $query->where('user_id', $user->getId())
                             ->where(function ($q) {
                                 $q->whereNull('date_end')
-                                  ->orWhere('date_end', '>', now());
+                                    ->orWhere('date_end', '>', now());
                             })
                             ->where(function ($q) {
                                 $q->whereNull('date_start')
-                                  ->orWhere('date_start', '<=', now());
+                                    ->orWhere('date_start', '<=', now());
                             });
                     })
                     ->get();
-        
+
                 $userRoles = [];
                 foreach ($userGroups as $userGroup) {
                     $userRoles[] = (int) $userGroup->role_id;
