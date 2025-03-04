@@ -76,6 +76,8 @@ abstract class Collector implements CollectorInterface, ViewsCount
 
     /** @var array|int */
     public $assignedTo = null;
+
+    public ?array $roleIds = null;
     public array|int|null $isReviewedBy = null;
     public ?array $reviewersNumber = null;
     public ?bool $awaitingReviews = null;
@@ -287,10 +289,12 @@ abstract class Collector implements CollectorInterface, ViewsCount
      * Limit results to submissions assigned to these users
      *
      * @param int|array $assignedTo An array of user IDs
+     * @param array $roleIds An array of role IDs, one of the Role::ROLE_ID_ constants
      */
-    public function assignedTo($assignedTo): AppCollector
+    public function assignedTo($assignedTo, $roleIds = null): AppCollector
     {
         $this->assignedTo = $assignedTo;
+        $this->roleIds = $roleIds;
         return $this;
     }
 
@@ -560,16 +564,35 @@ abstract class Collector implements CollectorInterface, ViewsCount
                         $q->on('s.submission_id', '=', 'sa.submission_id')
                             ->whereIn('sa.user_id', $this->assignedTo)
                     )
-                    ->leftJoin(
-                        'review_assignments as ra',
-                        fn (Builder $table) =>
-                        $table->on('s.submission_id', '=', 'ra.submission_id')
-                            ->where('ra.declined', '=', (int) 0)
-                            ->where('ra.cancelled', '=', (int) 0)
-                            ->whereIn('ra.reviewer_id', $this->assignedTo)
+
+                    // Additionally filter by role IDs if specified
+                    ->when(
+                        $this->roleIds != null,
+                        fn (Builder $q) => $q
+                            ->whereIn(
+                                'sa.user_group_id',
+                                fn (Builder $q) => $q
+                                    ->from('user_groups as ug')
+                                    ->select('user_group_id')
+                                    ->whereIn('role_id', $this->roleIds)
+                            )
                     )
-                    ->whereNotNull('sa.stage_assignment_id')
-                    ->orWhereNotNull('ra.review_id')
+
+                    // Include review assignments if role IDs aren't specified or if the reviewer role is included explicitly
+                    ->when(
+                        $this->roleIds == null || in_array(Role::ROLE_ID_REVIEWER, $this->roleIds),
+                        fn (Builder $q) => $q
+                            ->leftJoin(
+                                'review_assignments as ra',
+                                fn (Builder $table) =>
+                            $table->on('s.submission_id', '=', 'ra.submission_id')
+                                ->where('ra.declined', '=', (int) 0)
+                                ->where('ra.cancelled', '=', (int) 0)
+                                ->whereIn('ra.reviewer_id', $this->assignedTo)
+                            )
+                            ->whereNotNull('sa.stage_assignment_id')
+                            ->orWhereNotNull('ra.review_id')
+                    )
             );
         } elseif ($this->isUnassigned) {
             $sub = DB::table('stage_assignments')

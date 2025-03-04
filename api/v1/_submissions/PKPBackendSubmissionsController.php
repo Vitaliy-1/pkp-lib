@@ -197,33 +197,17 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
 
         foreach ($queryParams as $param => $val) {
             switch ($param) {
+                case 'roleIds':
+                    $roleIds = array_map(intval(...), paramToArray($val));
+                    // no break
                 case 'assignedTo':
-                    $collector->assignedTo(array_map(intval(...), paramToArray($val)));
+                    $userIds = array_map(intval(...), paramToArray($val));
+                    $collector->assignedTo($userIds, $roleIds ?? null);
                     break;
             }
         }
 
         $userRoles = $this->getAuthorizedContextObject(Application::ASSOC_TYPE_USER_ROLES);
-
-        /**
-         * FIXME: Clean up before release pkp/pkp-lib#7495.
-         * In new submission lists this endpoint is dedicated to retrieve all submissions only by admins and managers
-         */
-        if (!Config::getVar('features', 'enable_new_submission_listing')) {
-
-            // Anyone not a manager or site admin can only access their assigned submissions
-            $canAccessUnassignedSubmission = !empty(array_intersect([Role::ROLE_ID_SITE_ADMIN, Role::ROLE_ID_MANAGER], $userRoles));
-            Hook::run('API::_submissions::params', [$collector, $illuminateRequest]);
-            if (!$canAccessUnassignedSubmission) {
-                if (!is_array($collector->assignedTo)) {
-                    $collector->assignedTo([$currentUser->getId()]);
-                } elseif ($collector->assignedTo != [$currentUser->getId()]) {
-                    return response()->json([
-                        'error' => __('api.submissions.403.requestedOthersUnpublishedSubmissions'),
-                    ], Response::HTTP_FORBIDDEN);
-                }
-            }
-        }
 
         $submissions = $collector->getMany();
 
@@ -256,11 +240,17 @@ abstract class PKPBackendSubmissionsController extends PKPBaseController
             ], Response::HTTP_NOT_FOUND);
         }
 
-        $collector = $this->getSubmissionCollector($illuminateRequest->query());
+        $queryParams = $illuminateRequest->query();
+
+        $collector = $this->getSubmissionCollector($queryParams);
+
+        if (array_key_exists('roleIds', $queryParams)) {
+            $roleIds = array_map(intval(...), paramToArray($queryParams['roleIds']));
+        }
 
         $submissions = $collector
             ->filterByContextIds([$context->getId()])
-            ->assignedTo([$user->getId()])
+            ->assignedTo([$user->getId()], $roleIds ?? null)
             ->getMany();
 
         $contextId = $context->getId();
