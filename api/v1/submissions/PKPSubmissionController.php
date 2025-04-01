@@ -22,6 +22,7 @@ use APP\core\Application;
 use APP\facades\Repo;
 use APP\mail\variables\ContextEmailVariable;
 use APP\notification\NotificationManager;
+use APP\publication\enums\VersionStage;
 use APP\publication\Publication;
 use APP\section\Section;
 use APP\submission\Collector;
@@ -36,6 +37,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\LazyCollection;
 use Illuminate\Validation\Rule;
 use PKP\affiliation\Affiliation;
+use PKP\API\v1\submissions\formRequests\AddTask;
+use PKP\API\v1\submissions\resources\TaskResource;
 use PKP\components\forms\FormComponent;
 use PKP\components\forms\publication\PKPCitationsForm;
 use PKP\components\forms\publication\PKPMetadataForm;
@@ -51,6 +54,7 @@ use PKP\core\PKPRequest;
 use PKP\db\DAORegistry;
 use PKP\decision\DecisionType;
 use PKP\jobs\orcid\SendAuthorMail;
+use PKP\editorialTask\EditorialTask;
 use PKP\log\event\PKPSubmissionEventLogEntry;
 use PKP\mail\mailables\PublicationVersionNotify;
 use PKP\mail\mailables\SubmissionSavedForLater;
@@ -59,13 +63,14 @@ use PKP\notification\NotificationSubscriptionSettingsDAO;
 use PKP\orcid\OrcidManager;
 use PKP\plugins\Hook;
 use PKP\plugins\PluginRegistry;
-use APP\publication\enums\VersionStage;
 use PKP\publication\helpers\PublicationVersionInfoResource;
 use PKP\security\authorization\ContextAccessPolicy;
 use PKP\security\authorization\DecisionWritePolicy;
 use PKP\security\authorization\internal\SubmissionCompletePolicy;
 use PKP\security\authorization\PublicationAccessPolicy;
 use PKP\security\authorization\PublicationWritePolicy;
+use PKP\security\authorization\QueryAccessPolicy;
+use PKP\security\authorization\QueryWorkflowStageAccessPolicy;
 use PKP\security\authorization\StageRolePolicy;
 use PKP\security\authorization\SubmissionAccessPolicy;
 use PKP\security\authorization\UserRolesRequiredPolicy;
@@ -76,6 +81,7 @@ use PKP\submission\GenreDAO;
 use PKP\submission\PKPSubmission;
 use PKP\submission\reviewAssignment\ReviewAssignment;
 use PKP\submissionFile\SubmissionFile;
+use PKP\user\User;
 use PKP\userGroup\UserGroup;
 
 class PKPSubmissionController extends PKPBaseController
@@ -122,6 +128,11 @@ class PKPSubmissionController extends PKPBaseController
         'getChangeLanguageMetadata',
         'changeVersion',
         'getNextAvailableVersion',
+        'addTask',
+        'editTask',
+        'deleteTask',
+        'getTask',
+        'getTasks',
     ];
 
     /** @var array Handlers that must be authorized to write to a publication */
@@ -362,6 +373,37 @@ class PKPSubmissionController extends PKPBaseController
             ->middleware([
                 self::roleAuthorizer(Role::getAllRoles()),
             ]);
+
+        Route::middleware([
+            self::roleAuthorizer([
+                Role::ROLE_ID_MANAGER,
+                Role::ROLE_ID_SUB_EDITOR,
+                Role::ROLE_ID_ASSISTANT,
+                Role::ROLE_ID_REVIEWER,
+                Role::ROLE_ID_AUTHOR,
+            ]),
+        ])->group(function () {
+
+            Route::post('{submissionId}/tasks', $this->addTask(...))
+                ->name('submission.task.add')
+                ->whereNumber(['submissionId']);
+
+            Route::put('{submissionId}/tasks/{taskId}', $this->editTask(...))
+                ->name('submission.task.edit')
+                ->whereNumber(['submissionId', 'taskId']);
+
+            Route::delete('{submissionId}/tasks/{taskId}', $this->deleteTask(...))
+                ->name('submission.task.delete ')
+                ->whereNumber(['submissionId', 'taskId']);
+
+            Route::get('{submissionId}/tasks/{taskId}', $this->getTask(...))
+                ->name('submission.task.get')
+                ->whereNumber(['submissionId', 'taskId']);
+
+            Route::get('{submissionId}/tasks', $this->getTasks(...))
+                ->name('submission.task.getMany')
+                ->whereNumber('submissionId');
+        });
     }
 
     /**
@@ -406,6 +448,14 @@ class PKPSubmissionController extends PKPBaseController
         )) {
             $this->addPolicy(new SubmissionCompletePolicy($request, $args));
             $this->addPolicy(new PublicationAccessPolicy($request, $args, $roleAssignments));
+        }
+
+        if (in_array($actionName, ['editTask', 'deleteTask', 'getTask', 'getTasks'])) {
+            $this->addPolicy(new QueryAccessPolicy($request, $args, $roleAssignments, (int) $request->getUserVar('stageId')));
+        }
+
+        if ($actionName === 'addTask') {
+            $this->addPolicy(new QueryWorkflowStageAccessPolicy($request, $args, $roleAssignments, 'submissionId', (int) $request->getUserVar('stageId')));
         }
 
         return parent::authorize($request, $args, $roleAssignments);
@@ -1933,6 +1983,23 @@ class PKPSubmissionController extends PKPBaseController
         $decision = Repo::decision()->get($decisionId) ?? $decision;
 
         return response()->json(Repo::decision()->getSchemaMap()->map($decision), Response::HTTP_OK);
+    }
+
+    /**
+     * Creates a task or discussion associated with the submission
+     */
+    public function addTask(AddTask $illuminateRequest): JsonResponse
+    {
+        $validated = $illuminateRequest->validated();
+
+        $editorialTask = new EditorialTask($validated);
+        $editorialTask->save();
+
+        return response()->json(
+            (new TaskResource($editorialTask->refresh()))
+                ->toArray($illuminateRequest),
+            Response::HTTP_OK
+        );
     }
 
     protected function getFirstUserGroupInRole(Enumerable $userGroups, int $role): ?UserGroup
