@@ -345,6 +345,37 @@ class PKPSubmissionController extends PKPBaseController
             ->middleware([
                 self::roleAuthorizer(Role::getAllRoles()),
             ]);
+
+        Route::middleware([
+            self::roleAuthorizer([
+                Role::ROLE_ID_MANAGER,
+                Role::ROLE_ID_SUB_EDITOR,
+                Role::ROLE_ID_ASSISTANT,
+                Role::ROLE_ID_REVIEWER,
+                Role::ROLE_ID_AUTHOR,
+            ]),
+        ])->group(function () {
+
+            Route::post('{submissionId}/tasks', $this->addTask(...))
+                ->name('submission.task.add')
+                ->whereNumber(['submissionId']);
+
+            Route::put('{submissionId}/tasks/{taskId}', $this->editTask(...))
+                ->name('submission.task.edit')
+                ->whereNumber(['submissionId', 'taskId']);
+
+            Route::delete('{submissionId}/tasks/{taskId}', $this->deleteTask(...))
+                ->name('submission.task.delete ')
+                ->whereNumber(['submissionId', 'taskId']);
+
+            Route::get('{submissionId}/tasks/{taskId}', $this->getTask(...))
+                ->name('submission.task.get')
+                ->whereNumber(['submissionId', 'taskId']);
+
+            Route::get('{submissionId}/tasks', $this->getTasks(...))
+                ->name('submission.task.getMany')
+                ->whereNumber('submissionId');
+        });
     }
 
     /**

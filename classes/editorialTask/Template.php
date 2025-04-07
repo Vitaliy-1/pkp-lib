@@ -1,55 +1,63 @@
 <?php
 
 /**
- * @file classes/editorialTask/Task.php
+ * @file classes/editorialTask/Template.php
  *
  * Copyright (c) 2014-2025 Simon Fraser University
  * Copyright (c) 2000-2025 John Willinsky
  * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
  *
- * @class Task
+ * @class Template
  *
  * @ingroup editorialTask
  *
- * @brief Class representing an editorial tasks and discussions
+ * @brief Class representing templates for the editorial tasks and discussions
  */
 
 namespace PKP\editorialTask;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use PKP\core\traits\ModelWithSettings;
-use PKP\query\Query;
+use PKP\emailTemplate\EmailTemplate;
 
-class Task extends Model
+class Template extends Model
 {
     use ModelWithSettings;
 
-    protected $table = 'edit_tasks';
-    protected $primaryKey = 'edit_task_id';
+    protected $table = 'edit_task_templates';
+    protected $primaryKey = 'edit_task_template_id';
 
     protected $guarded = [
-        'editTaskId',
         'id',
+        'editTaskTemplateId'
     ];
 
     protected function casts()
     {
         return [
             'id' => 'integer',
-            'editTaskId' => 'integer',
-            'submissionId' => 'integer',
-            'stageId' => 'integer',
-            'createdBy' => 'integer',
-            'dateStarted' => 'datetime',
-            'dateCompleted' => 'datetime',
-            'dateDue' => 'datetime',
-            'discussionClosed' => 'boolean',
-            'type' => 'integer',
-            'status' => 'integer',
-            'queryId' => 'integer',
+            'editTaskTemplateId' => 'integer',
+            'emailTemplateId' => 'integer',
+            'name' => 'string',
+            'description' => 'string',
         ];
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getSettingsTable(): string
+    {
+        return 'edit_task_settings';
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public static function getSchemaName(): ?string
+    {
+        return null;
     }
 
     /**
@@ -78,23 +86,11 @@ class Task extends Model
     }
 
     /**
-     * @inheritDoc
+     * Discussion template is associated with an email template
+     * After the task is created, the email template body text is used to start a discussion
      */
-    public function getSettingsTable(): string
+    public function emailTemplate()
     {
-        return 'edit_task_settings';
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public static function getSchemaName(): ?string
-    {
-        return null;
-    }
-
-    public function discussion(): HasOne
-    {
-        return $this->hasOne(Query::class, 'query_id', 'query_id');
+        return $this->hasOne(EmailTemplate::class, 'email_id', 'email_template_id');
     }
 }

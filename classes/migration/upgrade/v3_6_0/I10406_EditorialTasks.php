@@ -27,15 +27,19 @@ class I10406_EditorialTasks extends Migration
     {
         Schema::create('edit_tasks', function (Blueprint $table) {
             $table->comment('Contains data regarding editorial tasks and discussions.');
-            $table->id('edit_task_id');
-            $table->unsignedBigInteger('submission_id');
+            $table->unsignedBigInteger('edit_task_id')->autoIncrement()->primary();
+            $table->bigInteger('submission_id');
             $table->foreign('submission_id')
                 ->references('submission_id')
                 ->on('submissions')
                 ->cascadeOnDelete();
             $table->index('submission_id');
             $table->unsignedSmallInteger('stage_id');
-            $table->unsignedBigInteger('created_by');
+            $table->bigInteger('query_id')->nullable();
+            $table->foreign('query_id')
+                ->references('query_id')
+                ->on('queries');
+            $table->bigInteger('created_by');
             // TODO if user is merged with another, update the created_by field correspondingly
             $table->foreign('created_by')
                 ->references('user_id')
@@ -51,30 +55,28 @@ class I10406_EditorialTasks extends Migration
 
         Schema::create('edit_task_settings', function (Blueprint $table) {
             $table->comment('More data about editorial tasks, including localized properties such as the name.');
-            $table->id('edit_task_setting_id');
+            $table->unsignedBigInteger('edit_task_setting_id')->autoIncrement()->primary();
             $table->unsignedBigInteger('edit_task_id');
             $table->foreign('edit_task_id')
                 ->references('edit_task_id')
                 ->on('edit_tasks')
                 ->cascadeOnDelete();
-
             $table->string('locale', 28)->default('');
             $table->string('setting_name', 255);
             $table->mediumText('setting_value')->nullable();
-
             $table->unique(['edit_task_id', 'locale', 'setting_name'], 'edit_task_settings_unique');
             $table->index(['edit_task_id'], 'edit_task_settings_edit_task_id');
         });
 
         Schema::create('edit_task_participants', function (Blueprint $table) {
             $table->comment('Table to establish the relationship between editorial tasks and users.');
-            $table->id('edit_task_participant_id');
+            $table->unsignedBigInteger('edit_task_participant_id')->autoIncrement()->primary();
             $table->unsignedBigInteger('edit_task_id');
             $table->foreign('edit_task_id')
                 ->references('edit_task_id')
                 ->on('edit_tasks')
                 ->cascadeOnDelete();
-            $table->unsignedBigInteger('participant_id');
+            $table->bigInteger('participant_id');
             $table->foreign('participant_id')
                 ->references('user_id')
                 ->on('users')
@@ -85,27 +87,27 @@ class I10406_EditorialTasks extends Migration
 
         Schema::create('edit_task_templates', function (Blueprint $table) {
             $table->comment('Represents templates for the editorial tasks.');
-            $table->id('edit_task_template_id');
+            $table->unsignedBigInteger('edit_task_template_id')->autoIncrement()->primary();
             $table->unsignedSmallInteger('stage_id');
-            $table->string('name');
-            $table->text('description')->nullable();
-            $table->boolean('include')->nullable();
+            $table->boolean('include')->default(false);
+            $table->bigInteger('email_template_id')->nullable();
+            $table->foreign('email_template_id')
+                ->references('email_id')
+                ->on('email_templates');
+            $table->timestamps();
         });
 
         Schema::create('edit_task_template_settings', function (Blueprint $table) {
             $table->comment('includes additional and multilingual data about the editorial task templates.');
             $table->id('edit_task_template_setting_id');
-
             $table->unsignedBigInteger('edit_task_template_id');
             $table->foreign('edit_task_template_id')
                 ->references('edit_task_template_id')
                 ->on('edit_task_templates')
                 ->cascadeOnDelete();
-
             $table->string('locale', 28)->default('');
             $table->string('setting_name', 255);
             $table->mediumText('setting_value')->nullable();
-
             $table->unique(['edit_task_template_id', 'locale', 'setting_name'], 'edit_task__template_settings_unique');
             $table->index(['edit_task_template_id'], 'edit_task_template_settings_edit_task_id');
         });
@@ -116,10 +118,10 @@ class I10406_EditorialTasks extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('edit_tasks');
         Schema::dropIfExists('edit_task_settings');
         Schema::dropIfExists('edit_task_participants');
-        Schema::dropIfExists('edit_task_templates');
         Schema::dropIfExists('edit_task_template_settings');
+        Schema::dropIfExists('edit_task_templates');
+        Schema::dropIfExists('edit_tasks');
     }
 }
