@@ -15,6 +15,7 @@
 namespace PKP\migration\upgrade\v3_6_0;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PKP\migration\Migration;
 
@@ -25,32 +26,32 @@ class I10406_EditorialTasks extends Migration
      */
     public function up(): void
     {
-        Schema::create('edit_tasks', function (Blueprint $table) {
-            $table->comment('Contains data regarding editorial tasks and discussions.');
-            $table->unsignedBigInteger('edit_task_id')->autoIncrement()->primary();
-            $table->bigInteger('submission_id');
-            $table->foreign('submission_id')
-                ->references('submission_id')
-                ->on('submissions')
-                ->cascadeOnDelete();
-            $table->index('submission_id');
-            $table->unsignedSmallInteger('stage_id');
-            $table->bigInteger('query_id')->nullable();
-            $table->foreign('query_id')
-                ->references('query_id')
-                ->on('queries');
-            $table->bigInteger('created_by');
-            // TODO if user is merged with another, update the created_by field correspondingly
-            $table->foreign('created_by')
-                ->references('user_id')
-                ->on('users');
-            $table->dateTime('date_started')->nullable();
-            $table->dateTime('date_completed')->nullable();
+        Schema::rename('queries', 'edit_tasks');
+        Schema::rename('query_participants', 'edit_task_participants');
+
+        Schema::table('edit_tasks', function (Blueprint $table) {
+            $table->renameColumn('query_id', 'edit_task_id');
+            $table->renameColumn('date_posted', 'created_at');
+            $table->renameColumn('date_modified', 'updated_at');
+
             $table->dateTime('date_due')->nullable();
-            $table->boolean('discussion_closed')->default(false);
+
+            $table->bigInteger('created_by');
+            // Identify and set all users created a discussion
+            $queryIds = DB::table('edit_tasks')->pluck('query_id');
+
+
+            // TODO if user is merged with another, update the created_by field correspondingly
+            $table->foreign('created_by')->references('user_id')->on('users');
+
             $table->unsignedSmallInteger('type'); // 1 - task, 2 - discussion
-            $table->unsignedSmallInteger('status'); // record about last activity
-            $table->timestamps();
+            $table->unsignedSmallInteger('status'); // record about the last activity
+        });
+
+        Schema::table('edit_task_participants', function (Blueprint $table) {
+            $table->renameColumn('query_participant_id', 'edit_task_participant_id');
+            $table->renameColumn('query_id', 'edit_task_id');
+            $table->boolean('responsible')->default(false);
         });
 
         Schema::create('edit_task_settings', function (Blueprint $table) {
@@ -66,23 +67,6 @@ class I10406_EditorialTasks extends Migration
             $table->mediumText('setting_value')->nullable();
             $table->unique(['edit_task_id', 'locale', 'setting_name'], 'edit_task_settings_unique');
             $table->index(['edit_task_id'], 'edit_task_settings_edit_task_id');
-        });
-
-        Schema::create('edit_task_participants', function (Blueprint $table) {
-            $table->comment('Table to establish the relationship between editorial tasks and users.');
-            $table->unsignedBigInteger('edit_task_participant_id')->autoIncrement()->primary();
-            $table->unsignedBigInteger('edit_task_id');
-            $table->foreign('edit_task_id')
-                ->references('edit_task_id')
-                ->on('edit_tasks')
-                ->cascadeOnDelete();
-            $table->bigInteger('participant_id');
-            $table->foreign('participant_id')
-                ->references('user_id')
-                ->on('users')
-                ->cascadeOnDelete();
-            $table->boolean('responsible')->default(false);
-            $table->unique(['edit_task_id', 'participant_id']);
         });
 
         Schema::create('edit_task_templates', function (Blueprint $table) {
