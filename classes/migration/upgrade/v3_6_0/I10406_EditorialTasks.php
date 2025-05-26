@@ -14,6 +14,7 @@
 
 namespace PKP\migration\upgrade\v3_6_0;
 
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,24 +29,45 @@ class I10406_EditorialTasks extends Migration
     {
         Schema::rename('queries', 'edit_tasks');
         Schema::rename('query_participants', 'edit_task_participants');
-
         Schema::table('edit_tasks', function (Blueprint $table) {
             $table->renameColumn('query_id', 'edit_task_id');
             $table->renameColumn('date_posted', 'created_at');
             $table->renameColumn('date_modified', 'updated_at');
-
             $table->dateTime('date_due')->nullable();
-
             $table->bigInteger('created_by');
-            // Identify and set all users created a discussion
-            $queryIds = DB::table('edit_tasks')->pluck('query_id');
-
-
-            // TODO if user is merged with another, update the created_by field correspondingly
-            $table->foreign('created_by')->references('user_id')->on('users');
-
             $table->unsignedSmallInteger('type'); // 1 - task, 2 - discussion
             $table->unsignedSmallInteger('status'); // record about the last activity
+        });
+
+        Schema::table('edit_tasks', function (Blueprint $table) {
+
+            // Identify and set all users created a discussion
+            DB::table('notes as n')
+                ->select(['n.assoc_id', 'n.user_id', 'n.date_created'])
+                ->joinSub(
+                    // Get the first (latest) note for each query
+                    DB::table('notes as nt')
+                        ->select('nt.assoc_id')
+                        ->selectRaw('MIN(nt.date_created) as min_date')
+                        ->where('nt.assoc_type', '=', 0x010000a) // ASSOC_TYPE_QUERY
+                        ->groupBy('nt.assoc_id'),
+                    'agr',
+                    fn (JoinClause $join) => $join->on('n.assoc_id', '=', 'agr.assoc_id')
+                )
+                ->whereColumn('n.date_created', 'agr.min_date')
+                ->orderBy('n.assoc_id')
+                ->each(function (object $note) {
+                    DB::table('edit_tasks')
+                        ->where('edit_task_id', $note->assoc_id)
+                        ->update([
+                            'created_by' => $note->user_id,
+                            'created_at' => $note->date_created,
+                            'updated_at' => $note->date_created,
+                            'type' => 2, // discussion
+                        ]);
+                });
+            // TODO if user is merged with another, update the created_by field correspondingly
+            $table->foreign('created_by')->references('user_id')->on('users');
         });
 
         Schema::table('edit_task_participants', function (Blueprint $table) {
@@ -57,7 +79,7 @@ class I10406_EditorialTasks extends Migration
         Schema::create('edit_task_settings', function (Blueprint $table) {
             $table->comment('More data about editorial tasks, including localized properties such as the name.');
             $table->unsignedBigInteger('edit_task_setting_id')->autoIncrement()->primary();
-            $table->unsignedBigInteger('edit_task_id');
+            $table->bigInteger('edit_task_id');
             $table->foreign('edit_task_id')
                 ->references('edit_task_id')
                 ->on('edit_tasks')
