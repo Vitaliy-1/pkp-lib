@@ -37,6 +37,7 @@ class I10406_EditorialTasks extends Migration
             $table->bigInteger('created_by');
             $table->unsignedSmallInteger('type'); // 1 - task, 2 - discussion
             $table->unsignedSmallInteger('status'); // record about the last activity
+            $table->renameIndex('queries_assoc_id', 'edit_tasks_assoc_id');
         });
 
         Schema::table('edit_tasks', function (Blueprint $table) {
@@ -71,8 +72,18 @@ class I10406_EditorialTasks extends Migration
         });
 
         Schema::table('edit_task_participants', function (Blueprint $table) {
+            $table->dropForeign('query_participants_user_id_foreign');
+            $table->foreign('user_id')->references('user_id')->on('users');
+
             $table->renameColumn('query_participant_id', 'edit_task_participant_id');
+
+            $table->dropForeign('query_participants_query_id_foreign');
             $table->renameColumn('query_id', 'edit_task_id');
+            $table->foreign('edit_task_id')->references('edit_task_id')->on('edit_tasks');
+
+            $table->renameIndex('query_participants_unique', 'edit_task_participants_unique');
+            $table->renameIndex('query_participants_query_id', 'edit_task_participants_edit_task_id');
+            $table->renameIndex('query_participants_user_id', 'edit_task_participants_user_id');
             $table->boolean('responsible')->default(false);
         });
 
