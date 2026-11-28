@@ -1,0 +1,114 @@
+{{--
+lib/pkp/templates/bodyText/pdfMetadata.blade
+
+Copyright (c) 2026 Simon Fraser University
+Copyright (c) 2026 John Willinsky
+Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
+
+@brief Publication header for the body text PDF preview and galley
+
+@uses $publication Publication The publication to extract metadata from
+@uses $context Context associated with the publication
+@uses $issue Issue|null associated with the publication, if any
+--}}
+
+@php
+    use PKP\core\PKPString;
+
+    $locale = $publication->getData('locale');
+    $contextLocale = $context->getPrimaryLocale();
+    $titles = $publication->getFullTitles('html');
+    $titleHtml = PKPString::stripUnsafeHtml(
+        ($titles[$locale] ?? '') ?: ($titles[$contextLocale] ?? '')
+    );
+
+    $abstractHtml = PKPString::stripUnsafeHtml(
+        $publication->getData('abstract', $locale) ?: $publication->getData('abstract', $contextLocale)
+    );
+
+    $contextTitle = $publication->getContextName($locale, $context);
+
+    $doi = $publication->getDoi();
+
+    $authors = $publication->getData('hideAuthor') ? [] : collect($publication->getData('authors'))
+        ->filter(fn ($author) => trim($author->getFullName(preferredLocale: $locale)) !== '')
+        ->all();
+
+    $volume = $issue?->getData('showVolume') ? $issue->getData('volume') : null;
+
+    $number = $issue?->getData('showNumber') ? $issue->getData('number') : null;
+
+    $pages = trim((string) $publication->getData('pages'));
+
+    $citation = array_filter([
+        $volume
+            ? __('issue.vol', locale: $locale) . ' ' . $volume . ($number ? "({$number})" : '')
+            : ($number ? __('issue.no', locale: $locale) . ' ' . $number : null),
+        $issue?->getData('showTitle')
+            ? ($issue->getData('title', $locale) ?: $issue->getData('title', $contextLocale)) : null,
+        $pages !== '' ? __('issue.pagesAbbreviated', locale: $locale) . ' ' . $pages : null,
+        $issue?->getData('showYear') ? $issue->getData('year') : null,
+    ]);
+
+    $keywordNames = fn ($language) => collect($publication->getData('keywords', $language))
+        ->pluck('name')
+        ->map(fn ($name) => trim((string) $name))
+        ->filter(fn ($name) => $name !== '')
+        ->all();
+    $keywords = $keywordNames($locale) ?: $keywordNames($contextLocale);
+@endphp
+
+@if($titleHtml || $authors || $contextTitle || $citation || $doi)
+    <div class="publication-pdf-heading">
+        @if($titleHtml)
+            <h1 class="publication-pdf-title">{!! $titleHtml !!}</h1>
+        @endif
+        @foreach($authors as $author)
+            @php
+                $affiliationNames = [];
+                $preferredLocales = array_filter([$locale, $contextLocale, $author->getDefaultLocale()]);
+                foreach ($author->getAffiliations() as $affiliation) {
+                    foreach ($preferredLocales as $preferredLocale) {
+                        $name = $affiliation->getAffiliationName($preferredLocale);
+                        if ($name) {
+                            $affiliationNames[] = $name;
+                            break;
+                        }
+                    }
+                }
+            @endphp
+            <p class="publication-pdf-author">
+                <strong>{{ $author->getFullName(preferredLocale: $locale) }}</strong>
+                @if($affiliationNames)
+                    — <i>{{ implode('; ', $affiliationNames) }}</i>
+                @endif
+            </p>
+        @endforeach
+        @if($contextTitle || $citation)
+            <p class="publication-pdf-journal">
+                @if($contextTitle)
+                    <i>{{ $contextTitle }}</i>{{ $citation ? ',' : '' }}
+                @endif
+                {{ implode(', ', $citation) }}
+            </p>
+        @endif
+        @if($doi)
+            <p class="publication-pdf-doi">
+                <strong>DOI:</strong> {{ $doi }}
+            </p>
+        @endif
+    </div>
+@endif
+
+@if($abstractHtml)
+    <section class="publication-pdf-abstract">
+        <h2>{{ __('common.abstract', locale: $locale) }}</h2>
+        {!! $abstractHtml !!}
+    </section>
+@endif
+
+@if($keywords)
+    <p class="publication-pdf-keywords">
+        <strong>{{ __('common.keywords', locale: $locale) }}:</strong> {{ implode('; ', $keywords) }}
+    </p>
+@endif
